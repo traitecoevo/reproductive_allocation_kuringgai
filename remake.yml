@@ -1,0 +1,182 @@
+packages:
+  - stats
+  - stringr
+  - smatr
+  - plyr
+  - tidyr
+  - dplyr
+  - xtable
+  - igraph
+  - rmarkdown
+  - broom
+  - ggtern
+  - yaml
+  - mgcv
+  - knitr
+
+sources:
+  - R
+
+include:
+  - remake_species_data.yml
+
+plot_options:
+  tall:
+    width: 4
+    height: 8
+  extra_wide:
+    width: 15
+    height: 5
+  wide:
+    width: 8
+    height: 4
+  small_square:
+    width: 4
+    height: 4
+  med_square:
+    width: 6
+    height: 6
+  large_square:
+    width: 8
+    height: 8
+
+targets:
+  all:
+    depends:
+      - export
+
+  # Papers --------------------------------------
+
+
+  ms/Accessory/Wenk-Accessory-SI.pdf:
+    command: latex_build("ms/Accessory/Wenk-Accessory-SI.tex", clean=TRUE)
+
+  ms/Accessory/Wenk-Accessory-SI.tex:
+    knitr:
+      auto_figure_prefix: true
+      chdir: true
+
+    depends:
+      - SummaryInd
+      - SummarySpp
+      - SummarySppAge
+      - HarvestData
+      - Investment_FD_all
+      - PartsSummary_all
+      - ms/Accessory/Sup_Table_flowering_parts.csv
+      - BAER_GraphMaps
+      - BOLE_GraphMaps
+      - COER_GraphMaps
+      - EPMI_GraphMaps
+      - GRBU_GraphMaps
+      - GRSP_GraphMaps
+      - HATE_GraphMaps
+      - HEPU_GraphMaps
+      - LEES_GraphMaps
+      - PELA_GraphMaps
+      - PEPU_GraphMaps
+      - PHPH_GraphMaps
+      - PILI_GraphMaps
+      - PUTU_GraphMaps
+      - R/figures.R
+
+  # Data --------------------------------------
+  IndividualsList:
+    command: read_csv("data/individuals.csv")
+
+  FlowerPartsData:
+    command: read_csv("data/flowerParts.csv")
+
+  Reproduction_raw:
+    command: read_csv("data/reproduction.csv")
+
+  ReproductionData:
+    command: filterForAllocation(Reproduction_raw, IndividualsList)
+
+  HarvestData_raw:
+    command: read_csv("data/harvest.csv")
+
+  HarvestData:
+    command: preprocessHarvest(HarvestData_raw, IndividualsList)
+
+  FloweringCategories:
+    command: read_csv("data/flowerCategories.csv")
+
+  MultiplierTable:
+    command: read_csv("data/multiplierTable.csv")
+
+  InvestmentCategories:
+    command: yaml.load_file("data/accessoryParts.yml")
+
+  LMA:
+    command:
+      - read_csv("data/LMA.csv")
+      - process_LMA(.)
+
+  wood_density_spp:
+    command:
+      - read_csv("data/woodDensity.csv")
+      - process_wood_density(.)
+
+  seedsize:
+    command:
+      - read_csv("data/seedsize.csv")
+
+  leavesPerLength:
+    command:
+      - read_csv("data/leaves_per_length.csv")
+      - process_leaves_per_length(.)
+
+  leafLoss:
+    command:
+      - read_csv("data/leaderGrowthLL.csv")
+      - process_leaf_loss(., leavesPerLength)
+
+  variable_list:
+    command:
+      - read_csv("data/variable_names.csv")
+
+  SummaryInd:
+    command:
+      - combine_by_individual(IndividualsList, Growth_all, ReproductiveCosts_all, LMA, leafLoss, wood_density_spp, seedsize)
+      - sort_by_variable(., variable_list)
+
+  SummarySppAge:
+    command: get_species_values(SummaryInd, groups=I(c("species", "age")))
+
+  SummarySpp:
+    command: get_species_values(SummaryInd, groups=I("species"))
+
+  SummaryCombine:
+    command: scale_individual_variable(SummaryInd, SummarySpp)
+
+  export:
+    depends:
+      - export/SummaryInd.rds
+      - export/SummarySpp.rds
+      - export/SummarySppAge.rds
+      - export/SummaryCombine.rds
+      - export/HarvestData.rds
+      - export/Investment_FD_all.rds
+      - export/PartsSummary_all.rds
+
+  export/SummaryInd.rds:
+    command: saveRDS(SummaryInd, target_name)
+
+  export/SummarySpp.rds:
+    command: saveRDS(SummarySpp, target_name)
+
+  export/SummarySppAge.rds:
+    command: saveRDS(SummarySppAge, target_name)
+
+  export/SummaryCombine.rds:
+    command: saveRDS(SummaryCombine, target_name)
+
+  export/HarvestData.rds:
+    command: saveRDS(HarvestData, target_name)
+
+  export/Investment_FD_all.rds:
+    command: saveRDS(Investment_FD_all, target_name)
+
+  export/PartsSummary_all.rds:
+    command: saveRDS(PartsSummary_all, target_name)

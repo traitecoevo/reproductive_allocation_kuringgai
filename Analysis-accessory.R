@@ -59,13 +59,6 @@ summary(mod)
 plot(repro_costs ~ embryo_endo_costs, SummarySpp[["mean"]], log = "xy", pch = 16,
   col = col.spp(species))
 
-# energy invested in accessory tissues unrelated to seedsize
-mod <- sma(accessory_costs_using_ee ~ embryo_endo_costs, data = subset(SummarySpp[["mean"]]),
-  method = "SMA", log = "xy", slope.test = 1)
-summary(mod)
-plot(accessory_costs_using_ee ~ embryo_endo_costs, SummarySpp[["mean"]], log = "xy",
-  pch = 16, col = col.spp(species))
-
 # total seed costs correlated with seedsize
 mod <- sma(success_costs ~ embryo_endo_costs, SummarySpp[["mean"]], method = "SMA",
   log = "xy")
