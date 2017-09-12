@@ -13,9 +13,10 @@ figure/*
 export
 ms/Accessory/Wenk-Accessory-SI.tex
 ms/Accessory/Wenk-Accessory-SI.pdf
-ms/Accessory/figure/
+ms/Accessory/figures/
 ms/Accessory/output/
 ms/plant_maps/full
+ms/RA/figures/
 ~*.doc*
 *.whisker
 ./bootstrap
