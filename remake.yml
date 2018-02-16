@@ -10,6 +10,7 @@ packages:
   - rmarkdown
   - broom
   - ggtern
+  - ggmap
   - yaml
   - mgcv
   - knitr
@@ -23,20 +24,22 @@ include:
 targets:
   all:
     depends:
+      - ms-RA
+      - ms-Accessory
       - export
+      - analysis.R
 
-  # Papers --------------------------------------
+  # Paper on Reproductive allocation-----------------------------
   ms-RA:
     depends:
     - ms/RA/figures/schematic.pdf
     - ms/RA/figures/RA_demo.pdf
-    - ms/RA/figures/RA_all_h.pdf
     - ms/RA/figures/RA_all_a.pdf
     - ms/RA/figures/investment.pdf
     - ms/RA/figures/leaf_weight.pdf
     - ms/RA/figures/life_history.pdf
-    - ms/RA/figures/height.pdf
-    - ms/RA/figures/RA_demo_all.pdf
+    - ms/RA/Wenk-RA-SI.pdf
+    - ms/RA/figures/abstract.pdf
 
   ms/RA/figures/schematic.pdf:
     command: plotRASexamples()
@@ -51,29 +54,25 @@ targets:
       height: 4
 
   ms/RA/figures/RA_demo_all.pdf:
-    command: figure_allocation_demo_all(SummaryInd, SummarySppAge)
+    command: figure_allocation_demo_all(SummarySppAge)
     plot:
       width: 16
       height: 32
 
-
-  ms/RA/figures/RA_all_h.pdf:
-    command: figure_allocation_all_h(SummaryInd, SummarySppAge)
-    plot:
-      width: 16
-      height: 9
+  fits_figure_allocation_all_a:
+    command: fit_allocation_model(SummaryInd)
 
   ms/RA/figures/RA_all_a.pdf:
-    command: figure_allocation_all_a(SummaryInd, SummarySppAge)
+    command: figure_allocation_all_a(fits_figure_allocation_all_a)
     plot:
       width: 16
       height: 9
 
   ms/RA/figures/life_history.pdf:
-    command: figure_life_history(SummarySpp, SummarySppAge)
+    command: figure_life_history(SummarySpp, SummarySppAge, fits_figure_allocation_all_a)
     plot:
       width: 8
-      height: 8
+      height: 4
 
   ms/RA/figures/investment.pdf:
     command: figure_investment_weight(SummaryInd)
@@ -87,21 +86,76 @@ targets:
       width: 16
       height: 9
 
+  ms/RA/figures/abstract.pdf:
+    command: figure_graphical_abstract(SummarySppAge)
+    plot:
+      width: 8
+      height: 4
+
+  ms/RA/Wenk-RA-SI.pdf:
+    command: latex_build("ms/RA/Wenk-RA-SI.tex", clean=TRUE)
+
+  ms/RA/Wenk-RA-SI.tex:
+    knitr:
+      auto_figure_prefix: true
+      chdir: true
+    depends:
+      - SummaryInd
+      - SummarySpp
+      - SummarySppAge
+      - HarvestData
+      - Investment_FD_all
+      - PartsSummary_all
+      - ms/Accessory/Sup_Table_flowering_parts.csv
+      - BAER_GraphMaps
+      - BOLE_GraphMaps
+      - COER_GraphMaps
+      - EPMI_GraphMaps
+      - GRBU_GraphMaps
+      - GRSP_GraphMaps
+      - HATE_GraphMaps
+      - HEPU_GraphMaps
+      - LEES_GraphMaps
+      - PELA_GraphMaps
+      - PEPU_GraphMaps
+      - PHPH_GraphMaps
+      - PILI_GraphMaps
+      - PUTU_GraphMaps
+      - R/figures.R
+      - ms/RA/suppmat.sty
+      - ms/RA/figures/height.pdf
+      - ms/RA/figures/RA_demo_all.pdf
+      - ms/RA/figures/leaf_loss.pdf
+      - ms/map.pdf
+
+
   ms/RA/figures/height.pdf:
     command: figure_height(Growth_all)
     plot:
       width: 16
       height: 9
 
-# ----------------
+  ms/RA/figures/leaf_loss.pdf:
+    command: figure_LMA_leafloss(SummarySpp)
+    plot:
+      width: 4
+      height: 4
+
+  ms/map.pdf:
+    command: figure_site_map("data/sites.csv")
+    plot:
+      width: 4
+      height: 4
+
+# Paper on Accessory costs ----------------
 
   ms-Accessory:
    depends:
+    - ms/Accessory/Wenk-Accessory-SI.pdf
     - ms/Accessory/figures/allocation.pdf
     - ms/Accessory/figures/seed_size_tests.pdf
     - ms/Accessory/figures/seed_size_scaling.pdf
     - ms/Accessory/figures/proxy.pdf
-    - ms/Accessory/Wenk-Accessory-SI.pdf
 
   ms/Accessory/figures/allocation.pdf:
     command: figure_accessory_bar(SummarySpp)
@@ -157,8 +211,9 @@ targets:
       - PILI_GraphMaps
       - PUTU_GraphMaps
       - R/figures.R
+      - ms/map.pdf
 
-  # Data --------------------------------------
+  # Dataset construction --------------------------------------
   IndividualsList:
     command: read_csv("data/individuals.csv")
 
@@ -223,7 +278,7 @@ targets:
 
   variable_list:
     command:
-      - read_csv("data/variable_names.csv")
+      - read_csv("data/variable_metadata.csv")
 
   SummaryInd_1:
     command:
@@ -242,33 +297,19 @@ targets:
   SummaryCombine:
     command: scale_individual_variable(SummaryInd, SummarySpp)
 
+  # Export of core dataset   --------------------------------------
   export:
     depends:
-      - export/SummaryInd.rds
-      - export/SummarySpp.rds
-      - export/SummarySppAge.rds
-      - export/SummaryCombine.rds
-      - export/HarvestData.rds
-      - export/Investment_FD_all.rds
-      - export/PartsSummary_all.rds
+      - export/SummaryInd.csv
+      - export/Variable_metadata.csv
 
-  export/SummaryInd.rds:
-    command: saveRDS(SummaryInd, target_name)
+  export/Variable_metadata.csv:
+    command: write.csv(variable_list, target_name, row.names = FALSE)
 
-  export/SummarySpp.rds:
-    command: saveRDS(SummarySpp, target_name)
+  export/SummaryInd.csv:
+    command: write.csv(SummaryInd, target_name, row.names = FALSE)
 
-  export/SummarySppAge.rds:
-    command: saveRDS(SummarySppAge, target_name)
-
-  export/SummaryCombine.rds:
-    command: saveRDS(SummaryCombine, target_name)
-
-  export/HarvestData.rds:
-    command: saveRDS(HarvestData, target_name)
-
-  export/Investment_FD_all.rds:
-    command: saveRDS(Investment_FD_all, target_name)
-
-  export/PartsSummary_all.rds:
-    command: saveRDS(PartsSummary_all, target_name)
+  # A plain R version of this file, for those who don't like remake  -----------------------------------
+  analysis.R:
+    packages: remake
+    command: make_script(file=target_name)

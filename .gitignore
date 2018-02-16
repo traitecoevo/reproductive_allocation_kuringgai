@@ -10,13 +10,14 @@ talk.md
 talk.pdf
 output/*
 figure/*
-export
 ms/Accessory/Wenk-Accessory-SI.tex
 ms/Accessory/Wenk-Accessory-SI.pdf
 ms/Accessory/figures/
 ms/Accessory/output/
 ms/plant_maps/full
 ms/RA/figures/
+ms/RA/Wenk-RA-SI.tex
+ms/RA/Wenk-RA-SI.pdf
 ~*.doc*
 *.whisker
 ./bootstrap

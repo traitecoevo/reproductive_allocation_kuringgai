@@ -10,7 +10,7 @@ ReproductiveCosts <- function(species, IndividualsList, InvestmentCategories, sp
 
   FD <- species_Investment$FD %>%
         group_by(individual, part) %>%
-        summarise_each(funs(sum), count, weight) %>%
+        summarise_at(vars(count, weight), sum) %>%
         mutate(unit_weight = divide_zero(weight, count))
 
   # add in embryo_endo_size from seed size spreadsheet
@@ -44,7 +44,7 @@ ReproductiveCosts <- function(species, IndividualsList, InvestmentCategories, sp
         aborted_ovule_count = ovule_count - seed_count,
         seedset = divide_zero(seed_count, ovule_count),
         choosiness = divide_zero(ovule_count, seed_count),
-        choosiness2 = divide_zero(prepollen_count_reach_flowering, seed_count),
+        #choosiness2 = divide_zero(prepollen_count_reach_flowering, seed_count),
         zygote_set = divide_zero(seed_count, postpollen_count),
         pollen_set = divide_zero(postpollen_count, prepollen_count_reach_flowering))
 
