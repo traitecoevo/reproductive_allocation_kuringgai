@@ -1,8 +1,6 @@
 # Studies on Reproductive Allocation for 14 plant species in Kuringgai National Park, Australia
 
-This repository contains code needed to reproduce the articles:
-
-**Wenk EH, Abramowicz K, Westoby M, & Falster DS** Coordinated shifts in allocation among reproductive tissues across 14 coexisting plant species. bioRxiv: 141473. doi: 10.1101/141473 
+This repository contains code needed to reproduce the article:
 
 **Wenk EH, Abramowicz K, Westoby M, & Falster DS** (2018) Investment in reproduction for 14 iteroparous perennials is large and associated with other life-history and functional traits. Journal of Ecology (in press).
 
@@ -46,23 +44,7 @@ which will save a combined set of variables and metadata into the folder `export
 
 Those wishing to reuse our data should start with these summary files, before delving into the raw-data.
 
-**First paper**:
-
-To build the figures and rerun analyses reported in the main text open a fresh R session and run:
-
-```r
-remake::make("ms-Accessory")
-```
-
-Figures will appear in the directory `ms/Accessory/figures/`.
-
-To build the supplementary materials run:
-
-```r
-remake::make("ms/Accessory/Wenk-Accessory-SI.pdf")
-```
-
-**Second paper**:
+**Results from the paper**:
 
 To build the figures reported in the main text open a fresh R session and run:
 

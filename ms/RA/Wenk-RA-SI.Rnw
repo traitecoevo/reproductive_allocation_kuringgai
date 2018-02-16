@@ -47,7 +47,7 @@ library(knitr)
 opts_chunk$set(echo=FALSE, fig.pos = "!h", fig.align="center", comment = NA)
 
 
-flowering_parts <- read.csv("../Accessory/Sup_Table_flowering_parts.csv", stringsAsFactors=FALSE, check.names=FALSE)
+flowering_parts <- read.csv("Sup_Table_flowering_parts.csv", stringsAsFactors=FALSE, check.names=FALSE)
 flowering_parts$Method <- clean_headers(flowering_parts$Method)
 flowering_parts$Part <- firstup(flowering_parts$Part)
 flowering_parts$Description <- firstup(flowering_parts$Description)
