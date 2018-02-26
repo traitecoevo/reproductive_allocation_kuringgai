@@ -4,6 +4,8 @@ This repository contains code needed to reproduce the article:
 
 **Wenk EH, Abramowicz K, Westoby M, & Falster DS** (2018) Investment in reproduction for 14 iteroparous perennials is large and associated with other life-history and functional traits. Journal of Ecology (in press).
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1183416.svg)](https://doi.org/10.5281/zenodo.1183416)
+
 
 ## Instructions
 
