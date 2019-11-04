@@ -1,0 +1,44 @@
+Type: Compendium
+Package: reproductive_allocation_kuringgai
+Title: Investment in reproduction for 14 iteroparous perennials is large and associated with other life-history and functional traits
+Version: 1.0.1
+Authors@R: c(
+    person(given = "Elizabeth",
+           family = "Wenk", 
+           role = "aut"),
+    person(given = "Konrad",
+           family = "Abramowicz", 
+           role = "aut"),
+    person(given = "Mark",
+           family = "Westoby", 
+           role = "aut"),
+    person(given = "Daniel",
+           family = "Falster", 
+           role = c("aut", "cre"),
+           email = "daniel.falster@unsw.edu.au",
+           comment = c(ORCID = "0000-0002-9814-092X"))
+    )
+Description: This repository contains code needed to reproduce the article: Wenk, EH, Abramowicz, K, Westoby, M, Falster, DS. Investment in reproduction for 14 iteroparous perennials is large and associated with other life‐history and functional traits. J Ecol. 2018; 106: 1338– 1348. https://doi.org/10.1111/1365-2745.12974.
+License: MIT + file LICENSE
+Depends: 
+    base,
+    broom,
+    dplyr,
+    ggmap,
+    ggtern,
+    igraph,
+    knitr,
+    mgcv,
+    plyr,
+    RColorBrewer,
+    rmarkdown,
+    smatr,
+    stats,
+    stringr,
+    tidyr,
+    xtable,
+    yaml
+Remotes: 
+    dkahle/ggmap
+Encoding: UTF-8
+LazyData: true
