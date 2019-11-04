@@ -32,3 +32,5 @@ ms/plant_maps/full
 *.ttt
 *.log
 *.gz
+.Rproj.user
+*.Rproj
