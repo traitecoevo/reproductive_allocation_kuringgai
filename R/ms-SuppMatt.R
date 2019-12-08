@@ -45,8 +45,11 @@ print_table_metadata <- function(path, align = NULL) {
 figure_site_map <- function(file) {
 
   # fetch map
-  basemap <- get_map('Kuringai National Park', zoom = 12, maptype = "hybrid")
-
+  basemap <- readRDS('ms/basemap.rds')
+  ## requires google API to recreate
+  ## set up geocoding API using register_google(key = 'API_HERE')
+  # basemap <- get_map('Kuringai National Park', zoom = 12, maptype = "hybrid")
+  
   # Load site data 
   data <-  read.csv(file, stringsAsFactors=FALSE, check.names=FALSE) %>% 
     filter(site != "Bobbin2010")
