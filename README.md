@@ -28,7 +28,7 @@ To ensure long-term [computational reproducibility](https://www.britishecologica
 - `data/`: directory containing raw data. For each file, there is a corresponding meta-data file, listing the variable names, definitions, and units.
 - `ms/`: directory containing manuscript in LaTeX and accompanying style files 
 - `R/`: directory containing functions to reproduce manuscript
-- `export/`: 
+- `export/`: intermediate outputs from analysis
 - `DESCRIPTION`: A machine-readable [compendium]() file containing key metadata and dependencies 
 - `LICENSE`: License for the materials
 - `Dockerfile` & `.binder/Dockerfile`: files used to generate docker containers for long-term reproducibility
