@@ -1,0 +1,315 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+# Setup
+
+## library, functions
+
+```{r}
+library(MCMCglmm)
+library(coda)
+library(bayesplot)
+library(ape)
+```
+
+required function, tweaked by adding `as.data.frame`
+
+```{r}
+# function to calculate phylogenetic signal and phylogenetic and non-phylogenetic correlations 
+# between traits from an MR-PMM
+mrpmm_cor <- function (fit, y1, y2, phy_group, ind_group, y1_D=0, y2_D=0, summary=F){
+  
+  fit$VCV <- as.data.frame(fit$VCV)
+  phy_cor <- fit$VCV[,paste0("trait",y1,":trait",y2,".",phy_group)] /
+    sqrt(fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] * 
+           fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)])
+  ind_cor <- fit$VCV[,paste0("trait",y1,":trait",y2,".",ind_group)] /
+    sqrt(fit$VCV[,paste0("trait",y1,":trait",y1,".",ind_group)] * 
+           fit$VCV[,paste0("trait",y2,":trait",y2,".",ind_group)])
+
+  y1_sig <- fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] /
+                   (fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] + 
+                      fit$VCV[,paste0("trait",y1,":trait",y1,".",ind_group)] + y1_D)
+  y2_sig <- fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)] /
+                  (fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)] + 
+                     fit$VCV[,paste0("trait",y2,":trait",y2,".",ind_group)] + y2_D)
+  
+  if (summary == T) {
+    return(cbind(data.frame(parameter=c(paste0(y1,"_sig"),paste0(y2,"_sig"),"phy_cor","ind_cor")),
+                 rbind(round(quantile(y1_sig, probs = c(0.025,0.25,0.5,0.75,0.975)),3),
+                       round(quantile(y2_sig, probs = c(0.025,0.25,0.5,0.75,0.975)),3),
+                       round(quantile(phy_cor, probs = c(0.025,0.25,0.5,0.75,0.975)),3),
+                       round(quantile(ind_cor, probs = c(0.025,0.25,0.5,0.75,0.975)),3))))
+  } else {
+    
+    result <- data.frame(y1_sig,y2_sig,phy_cor,ind_cor)
+    names(result) <- c(paste0(y1,"_sig"),paste0(y2,"_sig"),"phy_cor","ind_cor")
+    return(result)
+  }
+}
+```
+
+## Figure 2
+
+## read in and manipulate tree
+
+```{r}
+phy <- ape::read.tree("data/phytree2.tre")
+
+phy <- ape::read.tree("data/phytree.tre")
+
+plot(phy, show.tip.label = F) # looks ultrametric
+
+# perform checks
+is.binary(phy) # TRUE
+is.ultrametric(phy) # FALSE
+
+# resolve polytomies and make ultrametric (clock-like)
+phy <- multi2di(phy, random = FALSE) # splits polytomies into bifurcations but introduces zero length branches
+phy$edge.length[phy$edge.length == 0] <- 1e-5 # replace with small non-zero length
+phy <- force.ultrametric(phy, method = "extend") # make ultrametric by extending external branches where necessary
+phy$node.label <- (length(phy$tip.label)+1):(phy$Nnode+length(phy$tip.label)) # add node labels
+is.binary(phy);is.ultrametric(phy) # now passes checks
+```
+
+## read in data
+
+```{r}
+species_full <-
+  read_csv("data/species.csv") %>% 
+  dplyr::select(-Common_name, -Previous_names)
+
+phylogenetic_analysis <-
+  SummarySpp[["mean"]] %>%
+  dplyr::select(species, embryo_endo_costs, seedset, prop_prepollen_success,
+         prop_postpollen_success, prop_pollen_attract_vs_success) %>%
+  dplyr::rename(Abbreviation = species) %>%
+  left_join(species_full) %>%
+  mutate(
+    embryo_endo_costs = log10(embryo_endo_costs),
+    seedset = log10(seedset),
+    phylo = species
+    )
+
+rownames(phylogenetic_analysis) <- phylogenetic_analysis$species
+```
+
+# Pairwise tests
+
+## seed size \~ prop success costs to attraction
+
+```{r}
+trait <- c("embryo_endo_costs", "prop_pollen_attract_vs_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR1 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_pollen_attract_vs_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+
+plot(fit_MR1$VCV) # sample chains for phylo components are still a bit lumpy but roughly normal
+round(coda::autocorr(fit_MR1$VCV),2)[,,1] # lag > 0 should be close to 0
+summary(fit_MR1)
+```
+
+```{r}
+
+cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:prop_pollen_attract_vs_success"), each = 2)),
+      rbind(mrpmm_cor(fit_MR1, "embryo_endo_costs", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,])) %>% 
+  ggplot(aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), 
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.5, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14)) +
+  coord_flip() + ylim(-1,1) +
+  xlab("") + ylab("estimate") + guides(color=guide_legend("correlation")) +
+  scale_color_manual(labels = c("non-phylogenetic", "phylogenetic"), values = c("red", blues9[7])) +
+  scale_x_discrete(labels = c("embryo_endo_costs:prop_pollen_attract_vs_success" = bquote("log10(seed mass)~prop success inv to attraction")))
+```
+
+## seed size \~ seed set
+
+```{r}
+trait <- c("embryo_endo_costs", "seedset")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR2 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, seedset) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+
+plot(fit_MR2$VCV) # sample chains for phylo components are still a bit lumpy but roughly normal
+round(coda::autocorr(fit_MR2$VCV),2)[,,1] # lag > 0 should be close to 0
+summary(fit_MR2)
+```
+
+```{r}
+cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:seedset"), each = 2)),
+      rbind(mrpmm_cor(fit_MR2, "embryo_endo_costs", "seedset", "phylo", "units", summary = T)[3:4,])) %>% 
+  ggplot(aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), 
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.5, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14)) +
+  coord_flip() + ylim(-1,1) +
+  xlab("") + ylab("estimate") + guides(color=guide_legend("correlation")) +
+  scale_color_manual(labels = c("non-phylogenetic", "phylogenetic"), values = c("red", blues9[7])) +
+  scale_x_discrete(labels = c("embryo_endo_costs:seedset" = bquote("log10(seed mass)~log10(seedset)")))
+```
+
+## seed size \~ prop pollen-attract to success
+
+```{r}
+trait <- c("embryo_endo_costs", "prop_prepollen_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR3 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_prepollen_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+```
+
+## seed size \~ prop provisioning to success
+
+```{r}
+trait <- c("embryo_endo_costs", "prop_postpollen_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR4 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_postpollen_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+```
+
+## seedset \~ prop success costs to attraction
+
+```{r}
+trait <- c("seedset", "prop_pollen_attract_vs_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR5 <- MCMCglmm::MCMCglmm(cbind(seedset, prop_pollen_attract_vs_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+
+plot(fit_MR5$VCV) # sample chains for phylo components are still a bit lumpy but roughly normal
+round(coda::autocorr(fit_MR5$VCV),2)[,,1] # lag > 0 should be close to 0
+summary(fit_MR5)
+```
+
+# Combined plot
+
+```{r}
+cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:seedset", "seedset:prop_pollen_attract_vs_success", "embryo_endo_costs:prop_pollen_attract_vs_success", "embryo_endo_costs:prop_prepollen_success", "embryo_endo_costs:prop_postpollen_success"), each = 2)),
+      rbind(
+        mrpmm_cor(fit_MR2, "embryo_endo_costs", "seedset", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR5, "seedset", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR1, "embryo_endo_costs", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR3, "embryo_endo_costs", "prop_prepollen_success", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR4, "embryo_endo_costs", "prop_postpollen_success", "phylo", "units", summary = T)[3:4,]
+        )
+      ) %>% 
+  ggplot(aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_hline(yintercept=0.2, linetype="dotted") +
+  geom_hline(yintercept=-0.2, linetype="dotted") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), 
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.5, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14)) +
+  coord_flip() + ylim(-1,1) +
+  xlab("") + ylab("estimate") + guides(color=guide_legend("correlation")) +
+  scale_color_manual(labels = c("non-phylogenetic", "phylogenetic"), values = c("red", blues9[7])) +
+  scale_x_discrete(labels = c(
+      "embryo_endo_costs:seedset" = bquote("log10(seed mass)~log10(seedset)"),
+      "seedset:prop_pollen_attract_vs_success" = bquote("log10(seedset)~prop success inv to attraction"),
+      "embryo_endo_costs:prop_pollen_attract_vs_success" = bquote("log10(seed mass)~prop success inv to attraction"),
+      "embryo_endo_costs:prop_prepollen_success" = bquote("log10(seed mass)~prop attraction that is successful"),
+      "embryo_endo_costs:prop_postpollen_success" = bquote("log10(seed mass)~prop provisioning that is successful")
+      ))
+```
