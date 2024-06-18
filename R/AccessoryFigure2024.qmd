@@ -839,7 +839,7 @@ for (i in c("prop_prepollen_discarded_vs_all_repro", "prop_postpollen_discarded_
 }
 
 acc_costs_spp_format_sorted <- 
-  acc_costs_spp_format %>%
+  acc_costs_spp %>%
     arrange(species) %>%
     left_join(species %>% select(species = Species_name, spp = Abbreviation)) %>%
   mutate(
@@ -851,9 +851,6 @@ acc_costs_spp_format_sorted <-
     ) %>%
   select(species, spp, seedset, repro_costs, `Pollen attraction`, `Packaging and dispersal`, `Seed size`, 
          `Pollen attraction-d`, `Packaging and dispersal-d`)
-
-acc_costs_spp_format_sorted
-  
 
 write.csv(acc_costs_spp_format_sorted, file = "ms/Accessory/output/Table01_AccCosts_by_Species.csv", row.names = FALSE)
 ```
