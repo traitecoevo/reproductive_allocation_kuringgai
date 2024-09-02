@@ -86,6 +86,8 @@ ggsave("ms/Accessory/output/Figure2.jpg", plot = Figure_2, width = 7, height = 3
 ### Data
 
 ```{r}
+color_family <- c("Proteaceae" = "#6699CC", "Fabacaeae" = "#661100", "Rutaceae" = "#117733", "Ericaceae" = "#882255", "Lamiaceae" = "#332288", "Thymelaeaceae" = "#00AAAB")
+
 data <- SummarySpp[["mean"]] %>%
   select(species,
          embryo_endo_costs,
@@ -94,7 +96,8 @@ data <- SummarySpp[["mean"]] %>%
          prop_postpollen_success,
          prop_pollen_attract_vs_success,
          prop_provisioning_vs_success
-  )
+  ) %>%
+  left_join(species_full %>% dplyr::rename(species = Abbreviation) %>% dplyr::select(species, Family))
 
 theme_info <- theme_classic() +
     theme(
@@ -104,7 +107,9 @@ theme_info <- theme_classic() +
       axis.ticks.y.right = element_blank(),
       axis.ticks.x.top = element_blank(),
       plot.title.position = "plot"
-    ) 
+    )
+
+
 ```
 
 ### Panel 3A. Division with successfully-matured units
@@ -128,18 +133,19 @@ A_parameters <-
 
 Panel3A <-
   ggplot(data = data, aes(x = seedset, y = prop_pollen_attract_vs_success)) +
-    geom_point(colour = "#6D0026", size =2.5) +
+    geom_point(aes(col = factor(family)), size =2.5) +
     geom_smooth(aes(x=seedset, y = fit3A$fitted.values), colour="#CC1A36") + 
     scale_x_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
-    guides(x.sec = "axis", y.sec = "axis") +
+  scale_color_manual(value = color_family)  
+  guides(x.sec = "axis", y.sec = "axis") +
     labs(
       x = "Seeds:ovules (seedset)",
-      y = "Prop to pollen attraction"
+      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
     ) +
     geom_text(aes(x=.001, y=0.9, label="R^2"), size =4, parse = TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrA, ", p=", pvalueA)), size =4, hjust=0, vjust=0) +
-    ggtitle("A. Division for successfully-matured units") +
+    ggtitle("A. Division within successfully-matured units") +
     theme_info
 ```
 
@@ -207,7 +213,7 @@ Panel3C <-
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
       x = "Seed size (mg)",
-      y = "Prop to pollen attraction"
+      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
     ) +
     geom_text(aes(x=.01, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.01, y=0.01, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
@@ -244,7 +250,7 @@ Panel3D <-
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
       x = "Seed size (mg)",
-      y = "Prop to successful units"
+      y = str_wrap("Prop. of pollen-attraction biomass to successful units", width = 32)
     ) +
     geom_text(aes(x=.01, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.01, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
@@ -281,7 +287,7 @@ Panel3E <-
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
       x = "Seed size (mg)",
-      y = "Prop to successful units"
+      y = str_wrap("Prop. of provisioning biomass to successful units", width = 40)
     ) +
     geom_text(aes(x=.01, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.01, y=0.01, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
