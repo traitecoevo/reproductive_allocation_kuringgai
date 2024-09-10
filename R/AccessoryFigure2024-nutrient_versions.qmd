@@ -97,7 +97,7 @@ Panel3A <-
   guides(col = guide_legend(title= "Family")) +
     labs(
       x = "Seeds:ovules (seedset)",
-      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
+      y = str_wrap("Prop. of successful reproductive N to pollen attraction", width = 32)
     ) +
     geom_text(aes(x=.001, y=0.9, label="R^2"), size =4, parse = TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrA, ", p=", pvalueA)), size =4, hjust=0, vjust=0) +
@@ -128,17 +128,17 @@ Panel3B <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = seedset)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = 10^(fit3B$fitted.values)), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.001,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
     scale_y_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
-      y = "Seeds:ovules (seedset)"
+      x = "Seed N content (mg)",
+      y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
     ) +
-    geom_text(aes(x=.001, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.001, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
-    ggtitle("B. Seed size - seedset relationship") +
+    geom_text(aes(x=.005, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
+    ggtitle("B. Seed N content - seedset relationship") +
     theme_info +
   theme(legend.position = "none")
 ```
@@ -166,16 +166,16 @@ Panel3C <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = prop_pollen_attract_vs_success)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = fit3C$fitted.values), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.001,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
     guides(x.sec = "axis", y.sec = "axis") +
   scale_color_manual(values = color_family) + 
     labs(
-      x = "Seed size (mg)",
-      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
+      x = "Seed N content (mg)",
+      y = str_wrap("Prop. of successful reproductive N to pollen attraction", width = 32)
     ) +
-    geom_text(aes(x=.001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
+    geom_text(aes(x=.005, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.9, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
     ggtitle("C. Division within successfully-matured units") +
     theme_info +
   theme(legend.position = "none")
@@ -205,16 +205,16 @@ Panel3D <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = prop_prepollen_success)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = fit3D$fitted.values), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.001,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
-      y = str_wrap("Prop. of pollen-attraction biomass to successful units", width = 32)
+      x = "Seed N content (mg)",
+      y = str_wrap("Prop. of pollen-attraction N to successful units", width = 32)
     ) +
-    geom_text(aes(x=.001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
     ggtitle("D. Division of pollen-attraction investment") +
     theme_info +
   theme(legend.position = "none")
@@ -244,16 +244,16 @@ Panel3E <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = fit3E$fitted.values), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.001,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
-      y = str_wrap("Prop. of provisioning biomass to successful units", width = 40)
+      x = "Seed N content (mg)",
+      y = str_wrap("Prop. of provisioning N to successful units", width = 40)
     ) +
-    geom_text(aes(x=.001, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.001, y=0.01, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.01, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
     ggtitle("E. Division of provisioning investment") +
     theme_info +
   theme(legend.position = "none")
@@ -331,7 +331,7 @@ Panel3A <-
   guides(col = guide_legend(title= "Family")) +
     labs(
       x = "Seeds:ovules (seedset)",
-      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
+      y = str_wrap("Prop. of successful reproductive P to pollen attraction", width = 32)
     ) +
     geom_text(aes(x=.001, y=0.9, label="R^2"), size =4, parse = TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrA, ", p=", pvalueA)), size =4, hjust=0, vjust=0) +
@@ -362,17 +362,17 @@ Panel3B <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = seedset)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = 10^(fit3B$fitted.values)), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .001, .01, .1)) +
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
     scale_y_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
-      y = "Seeds:ovules (seedset)"
+      x = "Seed P content (mg)",
+      y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
     ) +
-    geom_text(aes(x=.0001, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.0001, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
-    ggtitle("B. Seed size - seedset relationship") +
+    geom_text(aes(x=.000001, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
+    ggtitle("B. Seed P - seedset relationship") +
     theme_info +
   theme(legend.position = "none")
 ```
@@ -384,7 +384,7 @@ fit3C <- glm(prop_pollen_attract_vs_success ~ log10(embryo_endo_costs), data =  
            family=gaussian(link="logit"))
 
 C <- summary(fit3C)[12] %>% as.data.frame()
-pvalueC <- C[2,4] %>% round(3)
+pvalueC <- C[2,4] %>% round(7)
 RsqrC <- formatC(1 - fit3C$deviance/fit3C$null.deviance, format = "f", digits=2) %>% as.character()
 C95 <- parameters::standardize_parameters(fit3C, ci = .95)[2,] %>%
   as.data.frame()
@@ -400,16 +400,16 @@ Panel3C <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = prop_pollen_attract_vs_success)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = fit3C$fitted.values), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.0001,0.5), labels = label_log(), breaks = c(.0001, .001, .01, .1)) +
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
     guides(x.sec = "axis", y.sec = "axis") +
   scale_color_manual(values = color_family) + 
     labs(
-      x = "Seed size (mg)",
-      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
+      x = "Seed P content (mg)",
+      y = str_wrap("Prop. of successful reproductive P to pollen attraction", width = 32)
     ) +
-    geom_text(aes(x=.0001, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.0001, y=0.01, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
+    geom_text(aes(x=.000001, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.01, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
     ggtitle("C. Division within successfully-matured units") +
     theme_info +
   theme(legend.position = "none")
@@ -439,16 +439,16 @@ Panel3D <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = prop_prepollen_success)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = fit3D$fitted.values), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.0001,0.5), labels = label_log(), breaks = c(.0001, .001, .01, .1)) +
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
-      y = str_wrap("Prop. of pollen-attraction biomass to successful units", width = 32)
+      x = "Seed P content (mg)",
+      y = str_wrap("Prop. of pollen-attraction P to successful units", width = 32)
     ) +
-    geom_text(aes(x=.0001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.0001, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
     ggtitle("D. Division of pollen-attraction investment") +
     theme_info +
   theme(legend.position = "none")
@@ -478,16 +478,16 @@ Panel3E <-
   ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
     geom_point(aes(col = factor(Family)), size =2.5) +
     geom_smooth(aes(x=embryo_endo_costs, y = fit3E$fitted.values), colour="#CC1A36") + 
-    scale_x_log10(limits = c(0.0001,0.5), labels = label_log(), breaks = c(.0001, .001, .01, .1)) +
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
-      y = str_wrap("Prop. of provisioning biomass to successful units", width = 40)
+      x = "Seed P content (mg)",
+      y = str_wrap("Prop. of provisioning P to successful units", width = 40)
     ) +
-    geom_text(aes(x=.0001, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
-    geom_text(aes(x=.0001, y=0.01, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.9, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
     ggtitle("E. Division of provisioning investment") +
     theme_info +
   theme(legend.position = "none")
@@ -516,6 +516,5 @@ grid::grid.draw(Figure3P)
 
 cowplot::save_plot("ms/Accessory/output/Figure3P.jpg", Figure3P, base_width = 6, base_height = 8.5)
 
-```
 ```
 

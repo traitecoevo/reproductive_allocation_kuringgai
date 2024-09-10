@@ -101,7 +101,7 @@ data <- SummarySpp[["mean"]] %>%
 
 theme_info <- theme_classic() +
     theme(
-      title = element_text(size = 9),
+      title = element_text(size = 8.5),
       axis.text.y.right = element_blank(),
       axis.text.x.top = element_blank(),
       axis.ticks.y.right = element_blank(),
@@ -179,7 +179,7 @@ Panel3B <-
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
       x = "Seed size (mg)",
-      y = "Seeds:ovules (seedset)"
+      y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
     ) +
     geom_text(aes(x=.01, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.01, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
