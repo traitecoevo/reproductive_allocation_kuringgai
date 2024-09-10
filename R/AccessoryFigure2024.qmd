@@ -86,7 +86,7 @@ ggsave("ms/Accessory/output/Figure2.jpg", plot = Figure_2, width = 7, height = 3
 ### Data
 
 ```{r}
-color_family <- c("Proteaceae" = "#6699CC", "Fabacaeae" = "#661100", "Rutaceae" = "#117733", "Ericaceae" = "#882255", "Lamiaceae" = "#332288", "Thymelaeaceae" = "#00AAAB")
+color_family <- c("Proteaceae" = "skyblue2", "Fabaceae" = "#661100", "Rutaceae" = "#117733", "Ericaceae" = "#882255", "Lamiaceae" = "#332288", "Thymelaeaceae" = "red")
 
 data <- SummarySpp[["mean"]] %>%
   select(species,
@@ -133,7 +133,7 @@ A_parameters <-
 
 Panel3A <-
   ggplot(data = data, aes(x = seedset, y = prop_pollen_attract_vs_success)) +
-    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_point(aes(col = factor(Family)), size = 2.5) +
     geom_smooth(aes(x=seedset, y = fit3A$fitted.values), colour="#CC1A36") + 
     scale_x_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
     scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
@@ -317,7 +317,11 @@ Empty_Grob <-
     axis.line = element_blank()
   )
 
-Figure3 <- arrangeGrob(Panel3A, Empty_Grob, Panel3B, Panel3C, Panel3D, Panel3E, nrow = 3, ncol = 2, widths =c(1, 1))
+Figure3_top_row <- arrangeGrob(Panel3A, Empty_Grob, ncol = 2, widths = c(1.5, 0.5))
+
+Figure3_bottom_rows <- arrangeGrob(Panel3B, Panel3C, Panel3D, Panel3E, ncol = 2, widths = c(1, 1))
+
+Figure3 <- arrangeGrob(Figure3_top_row, Figure3_bottom_rows, nrow = 2, ncol = 1, heights =c(1, 2))
 
 grid::grid.draw(Figure3)
 
@@ -335,7 +339,6 @@ cowplot::save_plot("ms/Accessory/output/Figure3.jpg", Figure3, base_width = 6, b
 mrpmm_cor <- function (fit, y1, y2, phy_group, ind_group, y1_D=0, y2_D=0, summary=F){
   
   fit$VCV <- as.data.frame(fit$VCV)
-  phy_cor <- fit$VCV[,paste0("trait",y1,":trait",y2,".",phy_group)] /
     sqrt(fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] * 
            fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)])
   ind_cor <- fit$VCV[,paste0("trait",y1,":trait",y2,".",ind_group)] /
@@ -939,4 +942,31 @@ names(acc_slopes) <- c("species", "n_propagule", "r2_propagule", "p_propagule",
 
 write.csv(acc_slopes, file = "ms/Accessory/output/Table_S1_extra_flower_invest_vs_all_repro_inv.csv",
   row.names = FALSE)
+```
+
+```{r}
+
+for_PCA <- data %>% select(-species, -Family, -prop_provisioning_vs_success) %>%
+  vegan::decostand(method = "standardize")
+
+PCA_accessory <- princomp(for_PCA)
+
+summary(PCA_accessory)
+
+PCA_loadings <- loadings(PCA_accessory)
+
+PCA_to_plot <- data.frame(PCA_accessory$scores) 
+
+PCA_to_plot$species <- data$species
+PCA_to_plot$family <- data$Family
+
+ggplot() +
+  geom_point(aes(Comp.1, Comp.2, col = factor(family)), data = PCA_to_plot, size =2.5) +
+  scale_color_manual(values = color_family) +
+  theme_classic()
+```
+
+```{r}
+
+ 
 ```

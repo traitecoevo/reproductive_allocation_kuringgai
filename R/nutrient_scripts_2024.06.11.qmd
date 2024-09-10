@@ -358,16 +358,20 @@ temp <-
     mutate(
       postpollen_aborted_inv = repro_inv - prepollen_success_inv - prepollen_discarded_inv - pack_disp_success_inv - propagule_inv,
       N_inv_prepollen_success = prepollen_success_inv * scaled_N_content_per_prepollination_success,
-      N_inv_prepollen_abort = prepollen_discarded_inv * N_content_prepollination_all,  
+      N_inv_prepollen_abort = N_inv_prepollination_all - N_inv_prepollen_success,  
+      #N_inv_prepollen_abort = prepollen_discarded_inv * N_content_prepollination_all,  
       N_inv_postpollen_success = pack_disp_success_inv * scaled_N_content_per_packaging_dispersal_success,
-      N_inv_postpollen_abort = postpollen_aborted_inv * N_content_postpollination_all,
-      N_inv_propagules = propagule_inv * scaled_N_content_per_propagule,    
+      N_inv_postpollen_abort = N_inv_postpollination_all - N_inv_postpollen_success,
+      #N_inv_postpollen_abort = postpollen_aborted_inv * N_content_postpollination_all,
+      N_inv_propagules = propagule_inv * scaled_N_content_per_propagule,
       N_inv_all_repro = N_inv_prepollen_success+ N_inv_prepollen_abort + N_inv_postpollen_success + N_inv_postpollen_abort + N_inv_propagules,
       P_inv_prepollen_success = prepollen_success_inv * scaled_P_content_per_prepollination_success,
-      P_inv_prepollen_abort = prepollen_discarded_inv * P_content_prepollination_all,  
+      #P_inv_prepollen_abort = prepollen_discarded_inv * P_content_prepollination_all,  
+      P_inv_prepollen_abort = P_inv_prepollination_all - P_inv_prepollen_success,  
       P_inv_postpollen_success = pack_disp_success_inv * scaled_P_content_per_packaging_dispersal_success,
-      P_inv_postpollen_abort = postpollen_aborted_inv * P_content_postpollination_all,
-      P_inv_propagules = propagule_inv * scaled_P_content_per_propagule,    
+      #P_inv_postpollen_abort = postpollen_aborted_inv * P_content_postpollination_all,
+      P_inv_postpollen_abort = P_inv_postpollination_all - P_inv_postpollen_success,
+      P_inv_propagules = propagule_inv * scaled_P_content_per_propagule, 
       P_inv_all_repro = P_inv_prepollen_success+ P_inv_prepollen_abort + P_inv_postpollen_success + P_inv_postpollen_abort + P_inv_propagules
       )
 
@@ -386,6 +390,7 @@ nutrient_accessory_proportions <-
       prop_N_postpollen_vs_required_success = N_inv_postpollen_success/ (N_inv_prepollen_success+N_inv_postpollen_success+N_inv_propagule),
       prop_N_propagule_vs_required_success = N_inv_propagule/ (N_inv_prepollen_success+N_inv_postpollen_success+N_inv_propagule),
       prop_N_prepollen_success_vs_all_prepollen = N_inv_prepollen_success/ (N_inv_prepollen_success+N_inv_prepollen_abort),
+      prop_N_postpollen_success_vs_all_postpollen = N_inv_postpollen_success/ (N_inv_postpollen_success+N_inv_postpollen_abort),
       prop_N_prepollen_failure_vs_all_prepollen = N_inv_prepollen_abort/ (N_inv_prepollen_success+N_inv_prepollen_abort),
       N_mass_per_successful = N_inv_per_packaging_dispersal_success + N_inv_per_prepollination_success + N_inv_per_propagule,
       prop_N_prepollen_vs_required_success = N_inv_per_prepollination_success / N_mass_per_successful,
@@ -402,26 +407,28 @@ nutrient_accessory_proportions <-
       prop_P_postpollen_vs_required_success = P_inv_postpollen_success/ (P_inv_prepollen_success+P_inv_postpollen_success+P_inv_propagule),
       prop_P_propagule_vs_required_success = P_inv_propagule/ (P_inv_prepollen_success+P_inv_postpollen_success+P_inv_propagule),
       prop_P_prepollen_success_vs_all_prepollen = P_inv_prepollen_success/ (P_inv_prepollen_success+P_inv_prepollen_abort),
+      prop_P_postpollen_success_vs_all_postpollen = P_inv_postpollen_success/ (P_inv_postpollen_success+P_inv_postpollen_abort),
       prop_P_prepollen_failure_vs_all_prepollen = P_inv_prepollen_abort/ (P_inv_prepollen_success+P_inv_prepollen_abort),
       P_mass_per_successful = P_inv_per_packaging_dispersal_success + P_inv_per_prepollination_success + P_inv_per_propagule,
       prop_P_prepollen_vs_required_success = P_inv_per_prepollination_success / P_mass_per_successful,
       prop_P_postpollen_vs_required_success = P_inv_per_packaging_dispersal_success / P_mass_per_successful, 
       prop_P_propagule_vs_required_success = P_inv_per_propagule / P_mass_per_successful
     ) %>%
-    select(species,individual,prop_N_inv_propagules, prop_N_inv_prepollen_success, prop_N_inv_prepollen_abort,
+    select(species,individual, N_inv_propagules, prop_N_inv_propagules, prop_N_inv_prepollen_success, prop_N_inv_prepollen_abort,
            prop_N_inv_postpollen_success, prop_N_inv_postpollen_abort,
            prop_N_prepollen_vs_required_success, prop_N_postpollen_vs_required_success,
            prop_N_propagule_vs_required_success, prop_N_prepollen_success_vs_all_prepollen,
            prop_N_prepollen_failure_vs_all_prepollen, N_mass_per_successful,
            prop_N_prepollen_vs_required_success, prop_N_postpollen_vs_required_success,
-           prop_N_propagule_vs_required_success,
+           prop_N_propagule_vs_required_success, P_inv_propagules,
            prop_P_inv_propagules, prop_P_inv_prepollen_success, prop_P_inv_prepollen_abort, 
            prop_P_inv_postpollen_success, prop_P_inv_postpollen_abort,
            prop_P_prepollen_vs_required_success, prop_P_postpollen_vs_required_success, 
            prop_P_propagule_vs_required_success, prop_P_prepollen_success_vs_all_prepollen,
            prop_P_prepollen_failure_vs_all_prepollen, P_mass_per_successful,
-           prop_P_prepollen_vs_required_success, prop_P_postpollen_vs_required_success,
-           prop_P_propagule_vs_required_success)
+           prop_N_postpollen_success_vs_all_postpollen, prop_P_postpollen_success_vs_all_postpollen)
+
+
 
 SummaryInd_nutrient <-
   temp %>%
@@ -574,4 +581,12 @@ nutrient_summary_N_by_age %>%
   ) -> nutrient_summary_by_spp_age
 
 nutrient_summary_by_spp_age[order(-nutrient_summary_by_spp_age$age),] -> nutrient_summary_by_spp_age 
+```
+
+## Stats
+
+### Compare slopes
+
+```{r}
+
 ```
