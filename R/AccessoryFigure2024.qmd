@@ -944,10 +944,25 @@ write.csv(acc_slopes, file = "ms/Accessory/output/Table_S1_extra_flower_invest_v
   row.names = FALSE)
 ```
 
-```{r}
 
-for_PCA <- data %>% select(-species, -Family, -prop_provisioning_vs_success) %>%
-  vegan::decostand(method = "standardize")
+## Extras - PCA
+```{r}
+data <- SummarySpp[["mean"]] %>%
+  select(species,
+         embryo_endo_costs,
+         seedset,
+         prop_prepollen_success,
+         prop_postpollen_success,
+         prop_pollen_attract_vs_success,
+         prop_provisioning_vs_success
+  ) %>%
+  left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
+
+# remove prop_provisioning_vs_success, because 1:1 correlation with `prop_pollen_attract_vs_success`, since they sum to 1
+for_PCA <- 
+  data %>% 
+  dplyr::select(-species, -prop_provisioning_vs_success, -Family) %>%
+  vegan::decostand(method = "standardize") # since different scaling for different traits
 
 PCA_accessory <- princomp(for_PCA)
 
