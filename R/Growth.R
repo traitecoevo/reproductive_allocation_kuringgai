@@ -34,7 +34,7 @@ preprocessHarvest <- function(HarvestData_raw, IndividualsList) {
   }
 
   get.mass.at.node.by.segment <- function(data) {
-    lapply(names(segments), get.mass.at.node, data = data) %>% rbind_all()
+    lapply(names(segments), get.mass.at.node, data = data) %>% bind_rows()
   }
 
   # Get average diameter for base of segment. This is given by diameter readings
@@ -50,7 +50,7 @@ preprocessHarvest <- function(HarvestData_raw, IndividualsList) {
   }
 
   get.diam.node.above.by.segment <- function(data) {
-    lapply(names(segments), get.diam.node.above, data = data) %>% rbind_all()
+    lapply(names(segments), get.diam.node.above, data = data) %>% bind_rows()
   }
 
   mass <- do(data, get.mass.at.node.by.segment(.))

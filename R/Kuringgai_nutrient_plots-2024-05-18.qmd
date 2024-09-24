@@ -1453,3 +1453,36 @@ estimate_contrasts(simpler_anova2, contrast = "tissue")
 ```{r}
 ```
 
+
+### compare slopes
+
+```{r}
+nutrient2_no_senesced_repro <- nutrient_temp2 %>%
+  filter(tissue_simple %in% c("propagule", "accessory")) %>%
+  filter(tissue_group != "senesced") %>%
+
+smatr::sma(N~P, data = nutrient2_no_senesced_repro, log = "XY", method = "SMA", slope.test = 1)
+# slope = 0.6380904 ; estimate = 0.67
+
+nutrient2_no_senesced_veg <- nutrient_temp2 %>%
+  filter(tissue_simple %in% c("leaves", "bark", "wood_from_tip")) %>%
+  filter(tissue_group != "senesced")
+
+smatr::sma(N ~ P, data = nutrient2_no_senesced_veg, log = "XY", method = "SMA", slope.test = 1)
+
+smatr::sma(N_live ~ P_live, data = nutrients_reproductive, log = "XY", method = "SMA", slope.test = 1)
+
+nutrients_reproductive_no_propagule <- nutrients_reproductive %>% filter(parts_to_match != "propagule")
+
+smatr::sma(N_live ~ P_live, data = nutrients_reproductive_no_propagule, log = "XY", method = "SMA", slope.test = 1)
+
+
+smatr::sma(N_live ~ P_live, data = nutrients_vegetative, log = "XY", method = "SMA", slope.test = 1)
+
+smatr::sma(N_dead ~ P_dead, data = nutrients_vegetative, log = "XY", method = "SMA", slope.test = 1)
+
+ggplot(data = nutrients_vegetative) +
+  geom_point(aes(x = P_live, y = P_dead, color = factor(parts_to_match)), pch = 21, fill = "white", size = 3) +
+  scale_y_log10(limits = c(.00001, .0005), labels = label_log(), breaks = c(.00001,  .0001, .001, .01)) +
+  scale_x_log10(limits = c(.00001, .0005), labels = label_log(), breaks = c(.00001,  .0001, .001, .01))
+```
