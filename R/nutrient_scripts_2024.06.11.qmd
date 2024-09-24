@@ -529,7 +529,8 @@ nutrient_temp2 <-
     tissue_simple %in% c("accessory", "propagule") ~ "reproductive",
     tissue_simple %in% c("leaves", "bark", "wood_from_base", "wood_from_tip") ~ "live",
     tissue_simple %in% c("senescent_leaves", "shed_sapwood") ~ "senesced"
-  ))
+  )) %>%
+  dplyr::mutate(NP_ratio = N/P)
 ```
 
 ### Species\*age summaries
