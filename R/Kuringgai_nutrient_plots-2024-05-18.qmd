@@ -1075,7 +1075,6 @@ RE_resorb <- arrangeGrob(RE_resorb_tmp, legend, nrow =2, ncol = 1, heights = c(1
 cowplot::save_plot("ms/nutrients/Figure4_RA_resorb.jpg", RE_resorb, base_width = 8, base_height = 11)
 ```
 
-
 ### Figure S1. RA schedule of snapshot harvests
 
 #### - Data frame manipulations
@@ -1453,6 +1452,7 @@ estimate_contrasts(simpler_anova2, contrast = "tissue")
 ```{r}
 ```
 
+## Stats
 
 ### compare slopes
 
@@ -1460,6 +1460,7 @@ estimate_contrasts(simpler_anova2, contrast = "tissue")
 nutrient2_no_senesced_repro <- nutrient_temp2 %>%
   filter(tissue_simple %in% c("propagule", "accessory")) %>%
   filter(tissue_group != "senesced") %>%
+  mutate(NP = N/P)
 
 smatr::sma(N~P, data = nutrient2_no_senesced_repro, log = "XY", method = "SMA", slope.test = 1)
 # slope = 0.6380904 ; estimate = 0.67
