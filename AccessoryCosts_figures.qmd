@@ -33,37 +33,35 @@ species <- read_csv("data/species.csv")
 species_phylo <- read_csv("data/species_phylo.csv")
 ```
 
-## Figure 2. Bar chart of proportions
-
-```{r}
-data <- SummarySpp[["mean"]] %>%
+## Figure 2. Bar chart of proportions{r}
+data \<- SummarySpp\[\["mean"\]\] %\>%
   select(species,
          prop_prepollen_discarded_vs_all_repro,
          prop_postpollen_discarded_vs_all_repro,
          prop_pollen_attract_vs_all_repro,
          prop_pack_disp_vs_all_repro,
          prop_embryo_endo_vs_all_repro
-  ) %>%
-  tidyr::pivot_longer(2:6) %>%
+  ) %\>%
+  tidyr::pivot_longer(2:6) %\>%
   mutate(name = factor(x=name, levels = c("prop_prepollen_discarded_vs_all_repro", "prop_postpollen_discarded_vs_all_repro",
                                           "prop_pollen_attract_vs_all_repro", "prop_pack_disp_vs_all_repro",
-                                          "prop_embryo_endo_vs_all_repro"))) %>%
-  arrange(species, name) %>%
+                                          "prop_embryo_endo_vs_all_repro"))) %\>%
+  arrange(species, name) %\>%
   dplyr::rename(accessory_category = name, proportion = value)
 
-accessory_tissue_colors <- c("prop_prepollen_discarded_vs_all_repro" = "#F9C29C",
+accessory_tissue_colors \<- c("prop_prepollen_discarded_vs_all_repro" = "#F9C29C",
                              "prop_postpollen_discarded_vs_all_repro" = "#F6A173",
                              "prop_pollen_attract_vs_all_repro" = "#99CFD1",
                              "prop_pack_disp_vs_all_repro" = "#67A9B6",
                              "prop_embryo_endo_vs_all_repro" = "#2A5676")
 
-accessory_tissue_labels <- c("prop_prepollen_discarded_vs_all_repro" = "Failed pollen attraction",
+accessory_tissue_labels \<- c("prop_prepollen_discarded_vs_all_repro" = "Failed pollen attraction",
                              "prop_postpollen_discarded_vs_all_repro" = "Failed packaging & dispersal",
                              "prop_pollen_attract_vs_all_repro" = "Pollen attraction toward mature seeds",
                              "prop_pack_disp_vs_all_repro" = "Packaging & dispersal toward mature seeds",
                              "prop_embryo_endo_vs_all_repro" = "Mature seeds")
 
-Figure_2 <-
+Figure_2 \<-
   ggplot(data = data, aes(x = species, y = proportion)) +
   geom_col(aes(fill = accessory_category)) +
   scale_fill_manual(values = accessory_tissue_colors, name = "Tissue category", labels = accessory_tissue_labels) +
@@ -79,7 +77,6 @@ Figure_2 <-
     )
 
 ggsave("ms/Accessory/output/Figure2.jpg", plot = Figure_2, width = 7, height = 3.5)
-```
 
 ## Figure 3. Regressions
 
@@ -944,7 +941,6 @@ write.csv(acc_slopes, file = "ms/Accessory/output/Table_S1_extra_flower_invest_v
   row.names = FALSE)
 ```
 
-
 ```{r}
 color_family <- c("Proteaceae" = "skyblue2", "Fabaceae" = "#661100", "Rutaceae" = "#117733", "Ericaceae" = "#882255", "Lamiaceae" = "#332288", "Thymelaeaceae" = "red")
 
@@ -960,6 +956,7 @@ accessory_using_nutrients_species <- accessory_using_nutrients %>%
   dplyr::ungroup() %>%
   dplyr::distinct()
 ```
+
 ## Table S4 Nitrogen
 
 ### N data
@@ -976,7 +973,6 @@ data <- accessory_using_nutrients_species %>%
   ) %>%
 left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
 ```
-
 
 ### Panel 3A. Division with successfully-matured units
 
@@ -1198,6 +1194,7 @@ cowplot::save_plot("ms/Accessory/output/Figure3N.png", Figure3N, base_width = 6,
 ## Table S5 Phosphorus
 
 ### Phosphorus data
+
 ```{r}
 data <- accessory_using_nutrients_species %>%
   select(species,
@@ -1210,7 +1207,6 @@ data <- accessory_using_nutrients_species %>%
   ) %>%
 left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
 ```
-
 
 ### Panel 3A. Division with successfully-matured units
 
@@ -1430,6 +1426,7 @@ cowplot::save_plot("ms/Accessory/output/Figure3P.png", Figure3P, base_width = 6,
 ```
 
 ## Extras - PCA
+
 ```{r}
 data <- SummarySpp[["mean"]] %>%
   select(species,

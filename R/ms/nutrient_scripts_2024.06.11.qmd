@@ -47,7 +47,7 @@ InvestmentCategories <- yaml.load_file("data/accessoryParts.yml")
 
 ```{r}
 nutrient %>%
-  mutate(N = N/100,
+  mutate(N = N/100
          P = P/10^6,
          K = K/10^6) %>%
   mutate(without_bark_diam_mm =gsub(",",";",without_bark_diam_mm),
@@ -529,8 +529,7 @@ nutrient_temp2 <-
     tissue_simple %in% c("accessory", "propagule") ~ "reproductive",
     tissue_simple %in% c("leaves", "bark", "wood_from_base", "wood_from_tip") ~ "live",
     tissue_simple %in% c("senescent_leaves", "shed_sapwood") ~ "senesced"
-  )) %>%
-  dplyr::mutate(NP_ratio = N/P)
+  ))
 ```
 
 ### Species\*age summaries

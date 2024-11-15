@@ -1,18 +1,4 @@
-```{r}
-temp %>% select(contains(c("embryo_endo_inv", "N_inv_postpollen_success", "N_inv_prepollen_success", "species", "individual", "scaled_N_content_per_packaging_dispersal_success", "prepollen_success_inv", "scaled_N_content_per_prepollination_success", "prepollen_discarded_inv"))) %>% filter(embryo_endo_inv >0) %>% View()
-
-N_inv_prepollen_success =  * ,
-      N_inv_prepollen_abort =  * N_content_prepollination_all,  
-      N_inv_postpollen_success = pack_disp_success_inv * scaled_N_content_per_packaging_dispersal_success,
-      N_inv_postpollen_abort = postpollen_aborted_inv * N_content_postpollination_all
-
-N_inv_all_repro = N_inv_prepollen_success+ N_inv_prepollen_abort + N_inv_postpollen_success + N_inv_postpollen_abort + N_inv_propagules,
-      
-
-
-
-```
-
+### Scripts to generate Accessory Cost figures using nutrients
 ```{r}
 nutrients_for_accessory <- SummaryInd %>%
   filter(repro_inv > 0 & !is.na(repro_inv)) %>%
