@@ -1,0 +1,1506 @@
+---
+title: "Accessory costs manuscript"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+## Data
+
+```{r}
+#general
+library(tidyverse)
+
+# analysis
+library(smatr)
+
+# phylogenetic
+library(MCMCglmm)
+library(coda)
+library(bayesplot)
+library(ape)
+library(phytools)
+# devtools::install_github("jinyizju/V.PhyloMaker2")
+library(V.PhyloMaker2)
+
+# plotting
+library(grid)
+library(scales)
+library(gridExtra)
+
+SummarySpp <- readRDS("output/SummarySpp.rds")
+SummaryInd <- readRDS("output/SummaryInd.rds")
+species <- read_csv("data/species.csv")
+species_phylo <- read_csv("data/species_phylo.csv")
+```
+
+## Figure 2. Bar chart of proportions
+
+```{r}
+data <- SummarySpp[["mean"]] %>%
+  select(species,
+         prop_prepollen_discarded_vs_all_repro,
+         prop_postpollen_discarded_vs_all_repro,
+         prop_pollen_attract_vs_all_repro,
+         prop_pack_disp_vs_all_repro,
+         prop_embryo_endo_vs_all_repro,
+         embryo_endo_costs
+  ) %>%
+  tidyr::pivot_longer(2:6) %>%
+  mutate(name = factor(x=name, levels = c("prop_prepollen_discarded_vs_all_repro", "prop_postpollen_discarded_vs_all_repro",
+                                          "prop_pollen_attract_vs_all_repro", "prop_pack_disp_vs_all_repro",
+                                          "prop_embryo_endo_vs_all_repro"))) %>%
+  arrange(embryo_endo_costs) %>%
+  select(-embryo_endo_costs) %>%
+  dplyr::rename(accessory_category = name, proportion = value) %>%
+  mutate(species_factor = factor(species, levels = c("EPMI", "PILI", "HEPU", "LEES", "COER", "PUTU", "PHPH", 
+                                                     "BOLE", "PEPU", "PELA", "HATE", "GRSP", "BAER", "GRBU")))
+
+accessory_tissue_colors <- c("prop_prepollen_discarded_vs_all_repro" = "#F9C29C",
+                             "prop_postpollen_discarded_vs_all_repro" = "#F6A173",
+                             "prop_pollen_attract_vs_all_repro" = "#99CFD1",
+                             "prop_pack_disp_vs_all_repro" = "#67A9B6",
+                             "prop_embryo_endo_vs_all_repro" = "#2A5676")
+
+accessory_tissue_labels <- c("prop_prepollen_discarded_vs_all_repro" = "Failed pollen attraction",
+                             "prop_postpollen_discarded_vs_all_repro" = "Failed packaging & dispersal",
+                             "prop_pollen_attract_vs_all_repro" = "Pollen attraction toward mature seeds",
+                             "prop_pack_disp_vs_all_repro" = "Packaging & dispersal toward mature seeds",
+                             "prop_embryo_endo_vs_all_repro" = "Mature seeds")
+
+Figure_2 <-
+  ggplot(data = data, aes(x = species_factor, y = proportion)) +
+  geom_col(aes(fill = accessory_category)) +
+  scale_fill_manual(values = accessory_tissue_colors, name = "Tissue category", labels = accessory_tissue_labels) +
+  scale_y_continuous(limits = c(0,1), expand = c(0,0), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  labs(
+    x = "Species",
+    y = "Proportion of total reproductive mass"
+  ) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    plot.title = element_text(hjust = 0.5, size = 10)
+    )
+
+ggsave("ms/Accessory/output/Figure2.png", plot = Figure_2, width = 7, height = 3.5)
+```
+
+## Figure 3. Regressions
+
+### Data
+
+```{r}
+color_family <- c("Proteaceae" = "skyblue2", "Fabaceae" = "#661100", "Rutaceae" = "#117733", "Ericaceae" = "#882255", "Lamiaceae" = "#332288", "Thymelaeaceae" = "red")
+
+data <- SummarySpp[["mean"]] %>%
+  select(species,
+         embryo_endo_costs,
+         seedset,
+         prop_prepollen_success,
+         prop_postpollen_success,
+         prop_pollen_attract_vs_success,
+         prop_provisioning_vs_success
+  ) %>%
+  left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
+
+theme_info <- theme_classic() +
+    theme(
+      title = element_text(size = 8.5),
+      axis.text.y.right = element_blank(),
+      axis.text.x.top = element_blank(),
+      axis.ticks.y.right = element_blank(),
+      axis.ticks.x.top = element_blank(),
+      plot.title.position = "plot"
+    )
+```
+
+### Panel 3A. Division with successfully-matured units
+
+```{r}
+fit3A <- glm(prop_pollen_attract_vs_success ~ log10(seedset),
+             family=gaussian(link="logit"), data =  data)
+
+A <- summary(fit3A)[12] %>% as.data.frame()
+pvalueA <- A[2,4] %>% round(2)
+RsqrA <- formatC(1 - fit3A$deviance/fit3A$null.deviance, format = "f", digits=2) %>% as.character()
+A95 <- parameters::standardize_parameters(fit3A, ci = .95)[2,] %>%
+  as.data.frame()
+A50 <- parameters::standardize_parameters(fit3A, ci = .5)[2,] %>%
+  as.data.frame()
+
+A_parameters <-
+  c("model", A95[4], A50[4], A95[2], A50[5], A95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3A <-
+  ggplot(data = data, aes(x = seedset, y = prop_pollen_attract_vs_success)) +
+    geom_point(aes(col = factor(Family)), size = 2.5) +
+    geom_smooth(aes(x=seedset, y = fit3A$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+  guides(x.sec = "axis", y.sec = "axis") +
+  guides(col = guide_legend(title= "Family")) +
+    labs(
+      x = "Seeds:ovules (seedset)",
+      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
+    ) +
+    geom_text(aes(x=.001, y=0.9, label="R^2"), size =4, parse = TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrA, ", p=", pvalueA)), size =4, hjust=0, vjust=0) +
+    ggtitle("A. Division within successfully-matured units") +
+    theme_info
+```
+
+### Panel 3B. Seedsize-seedset
+
+```{r}
+fit3B <- glm(log10(seedset) ~ log10(embryo_endo_costs), data =  data)
+
+B <- summary(fit3B)[12] %>% as.data.frame()
+pvalueB <- B[2,4] %>% round(3)
+RsqrB <- formatC(1 - fit3B$deviance/fit3B$null.deviance, format = "f", digits=2) %>% as.character()
+
+B95 <- parameters::standardize_parameters(fit3B, ci = .95)[2,] %>%
+  as.data.frame()
+B50 <- parameters::standardize_parameters(fit3B, ci = .5)[2,] %>%
+  as.data.frame()
+
+B_parameters <-
+  c("model", B95[4], B50[4], B95[2], B50[5], B95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3B <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = seedset)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = 10^(fit3B$fitted.values)), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.01,50), labels = label_log(), breaks = c(.01, .1, 1, 10)) +
+    scale_y_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed size (mg)",
+      y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
+    ) +
+    geom_text(aes(x=.01, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.01, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
+    ggtitle("B. Seed size - seedset relationship") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3C. Seedsize-prop_postpollen_success
+
+```{r}
+fit3C <- glm(prop_pollen_attract_vs_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+C <- summary(fit3C)[12] %>% as.data.frame()
+pvalueC <- C[2,4] %>% round(3)
+RsqrC <- formatC(1 - fit3C$deviance/fit3C$null.deviance, format = "f", digits=2) %>% as.character()
+C95 <- parameters::standardize_parameters(fit3C, ci = .95)[2,] %>%
+  as.data.frame()
+C50 <- parameters::standardize_parameters(fit3C, ci = .5)[2,] %>%
+  as.data.frame()
+
+C_parameters <-
+  c("model", C95[4], C50[4], C95[2], C50[5], C95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3C <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_pollen_attract_vs_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3C$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.01,50), labels = label_log(), breaks = c(.01, .1, 1, 10)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+    guides(x.sec = "axis", y.sec = "axis") +
+  scale_color_manual(values = color_family) + 
+    labs(
+      x = "Seed size (mg)",
+      y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
+    ) +
+    geom_text(aes(x=.01, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.01, y=0.01, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
+    ggtitle("C. Division within successfully-matured units") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3D. Seedsize-prop pollen-attraction to success
+
+```{r}
+fit3D <- glm(prop_prepollen_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+D <- summary(fit3D)[12] %>% as.data.frame()
+pvalueD <- D[2,4] %>% round(3)
+RsqrD <- formatC(1 - fit3D$deviance/fit3D$null.deviance, format = "f", digits=2) %>% as.character()
+
+D95 <- parameters::standardize_parameters(fit3D, ci = .95)[2,] %>%
+  as.data.frame()
+D50 <- parameters::standardize_parameters(fit3D, ci = .5)[2,] %>%
+  as.data.frame()
+
+D_parameters <-
+  c("model", D95[4], D50[4], D95[2], D50[5], D95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3D <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_prepollen_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3D$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.01,50), labels = label_log(), breaks = c(.01, .1, 1, 10)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed size (mg)",
+      y = str_wrap("Prop. of pollen-attraction biomass to successful units", width = 32)
+    ) +
+    geom_text(aes(x=.01, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.01, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
+    ggtitle("D. Division of pollen-attraction investment") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3E. Seedsize-prop provisioning to success
+
+```{r}
+fit3E <- glm(prop_postpollen_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+E <- summary(fit3E)[12] %>% as.data.frame()
+pvalueE <- E[2,4] %>% round(3)
+RsqrE <- formatC(1 - fit3E$deviance/fit3E$null.deviance, format = "f", digits=2) %>% as.character()
+
+E95 <- parameters::standardize_parameters(fit3E, ci = .95)[2,] %>%
+  as.data.frame()
+E50 <- parameters::standardize_parameters(fit3E, ci = .5)[2,] %>%
+  as.data.frame()
+
+E_parameters <-
+  c("model", E95[4], E50[4], E95[2], E50[5], E95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3E <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3E$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.01,50), labels = label_log(), breaks = c(.01, .1, 1, 10)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed size (mg)",
+      y = str_wrap("Prop. of provisioning biomass to successful units", width = 40)
+    ) +
+    geom_text(aes(x=.01, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.01, y=0.01, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
+    ggtitle("E. Division of provisioning investment") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Combined plot
+
+```{r}
+Empty_Grob <- 
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
+  theme_classic() +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank()
+  )
+
+Figure3_top_row <- arrangeGrob(Panel3A, Empty_Grob, ncol = 2, widths = c(1.5, 0.5))
+
+Figure3_bottom_rows <- arrangeGrob(Panel3B, Panel3C, Panel3D, Panel3E, ncol = 2, widths = c(1, 1))
+
+Figure3 <- arrangeGrob(Figure3_top_row, Figure3_bottom_rows, nrow = 2, ncol = 1, heights =c(1, 2))
+
+grid::grid.draw(Figure3)
+
+cowplot::save_plot("ms/Accessory/output/Figure3.png", Figure3, base_width = 6, base_height = 8.5)
+
+```
+
+## Figure 4. Phylogenetic partitioning
+
+### Required function, tweaked by adding `as.data.frame`
+
+```{r}
+# function to calculate phylogenetic signal and phylogenetic and non-phylogenetic correlations 
+# between traits from an MR-PMM
+mrpmm_cor <- function (fit, y1, y2, phy_group, ind_group, y1_D=0, y2_D=0, summary=F){
+  
+  fit$VCV <- as.data.frame(fit$VCV)
+  
+  phy_cor <- fit$VCV[,paste0("trait",y1,":trait",y2,".",phy_group)] /  
+    sqrt(fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] * 
+           fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)])
+
+  ind_cor <- fit$VCV[,paste0("trait",y1,":trait",y2,".",ind_group)] /
+    sqrt(fit$VCV[,paste0("trait",y1,":trait",y1,".",ind_group)] * 
+           fit$VCV[,paste0("trait",y2,":trait",y2,".",ind_group)])
+
+  y1_sig <- fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] /
+                   (fit$VCV[,paste0("trait",y1,":trait",y1,".",phy_group)] + 
+                      fit$VCV[,paste0("trait",y1,":trait",y1,".",ind_group)] + y1_D)
+  y2_sig <- fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)] /
+                  (fit$VCV[,paste0("trait",y2,":trait",y2,".",phy_group)] + 
+                     fit$VCV[,paste0("trait",y2,":trait",y2,".",ind_group)] + y2_D)
+  
+  if (summary == T) {
+    return(cbind(data.frame(parameter=c(paste0(y1,"_sig"),paste0(y2,"_sig"),"phy_cor","ind_cor")),
+                 rbind(round(quantile(y1_sig, probs = c(0.025,0.25,0.5,0.75,0.975)),3),
+                       round(quantile(y2_sig, probs = c(0.025,0.25,0.5,0.75,0.975)),3),
+                       round(quantile(phy_cor, probs = c(0.025,0.25,0.5,0.75,0.975)),3),
+                       round(quantile(ind_cor, probs = c(0.025,0.25,0.5,0.75,0.975)),3))))
+  } else {
+    
+    result <- data.frame(y1_sig,y2_sig,phy_cor,ind_cor)
+    names(result) <- c(paste0(y1,"_sig"),paste0(y2,"_sig"),"phy_cor","ind_cor")
+    return(result)
+  }
+}
+```
+
+mrpmm_cor(fit_MR1, "embryo_endo_costs", "prop_pollen_attract_vs_success", "phylo", "units", summary = T) fit \<- fit_MR1 y1 \<- "embryo_endo_costs" y2 \<- "prop_pollen_attract_vs_success"
+
+### New code for creating tree, Nov 2024
+
+```{r}
+data <- species_full |> 
+  select(-species, -Abbreviation) |> 
+  rename(species = Species_name, family = Family) |> 
+  mutate(genus = word(species, 1)) |> 
+  select(species, genus, family) |> 
+  as.data.frame()
+
+phy_new <- V.PhyloMaker2::phylo.maker(data)
+
+plot(phylo$scenario.3)
+```
+
+
+### Read in and manipulate tree
+
+```{r}
+# tree from 2021
+phy <- ape::read.tree("data/phytree2.tre")
+
+plot(phy, show.tip.label = T) # looks ultrametric
+
+# use 2024 tree instead
+
+phy <- phy_new$scenario.3
+
+# perform checks
+is.binary(phy) # TRUE
+is.ultrametric(phy) # FALSE
+
+# resolve polytomies and make ultrametric (clock-like)
+phy <- ape::multi2di(phy, random = FALSE) # splits polytomies into bifurcations but introduces zero length branches
+phy$edge.length[phy$edge.length == 0] <- 1e-5 # replace with small non-zero length
+phy <- phytools::force.ultrametric(phy, method = "extend") # make ultrametric by extending external branches where necessary
+phy$node.label <- (length(phy$tip.label)+1):(phy$Nnode+length(phy$tip.label)) # add node labels
+is.binary(phy);is.ultrametric(phy) # now passes checks
+```
+
+### Read in data
+
+```{r}
+species_full <-
+  read_csv("data/species_phylo.csv") %>% 
+  dplyr::select(-Common_name, -Previous_names)
+
+phylogenetic_analysis <-
+  SummarySpp[["mean"]] %>%
+  dplyr::select(species, embryo_endo_costs, seedset, prop_prepollen_success,
+         prop_postpollen_success, prop_pollen_attract_vs_success) %>%
+  dplyr::rename(Abbreviation = species) %>%
+  left_join(species_full) %>%
+  dplyr::mutate(
+    embryo_endo_costs = log10(embryo_endo_costs),
+    seedset = log10(seedset),
+    phylo = species
+    )
+
+rownames(phylogenetic_analysis) <- phylogenetic_analysis$species
+```
+
+### Pairwise tests
+
+#### seed size \~ prop success costs to attraction
+
+```{r}
+trait <- c("embryo_endo_costs", "prop_pollen_attract_vs_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR1 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_pollen_attract_vs_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+
+plot(fit_MR1$VCV) # sample chains for phylo components are still a bit lumpy but roughly normal
+round(coda::autocorr(fit_MR1$VCV),2)[,,1] # lag > 0 should be close to 0
+summary(fit_MR1)
+```
+
+```{r}
+
+cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:prop_pollen_attract_vs_success"), each = 2)),
+      rbind(mrpmm_cor(fit_MR1, "embryo_endo_costs", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,])) %>% 
+  ggplot(aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), 
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.5, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14)) +
+  coord_flip() + ylim(-1,1) +
+  xlab("") + ylab("estimate") + guides(color=guide_legend("correlation")) +
+  scale_color_manual(labels = c("non-phylogenetic", "phylogenetic"), values = c("red", blues9[7])) +
+  scale_x_discrete(labels = c("embryo_endo_costs:prop_pollen_attract_vs_success" = bquote("log10(seed mass)~prop success inv to attraction")))
+```
+
+#### seed size \~ seed set
+
+```{r}
+trait <- c("embryo_endo_costs", "seedset")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR2 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, seedset) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+
+plot(fit_MR2$VCV) # sample chains for phylo components are still a bit lumpy but roughly normal
+round(coda::autocorr(fit_MR2$VCV),2)[,,1] # lag > 0 should be close to 0
+summary(fit_MR2)
+```
+
+```{r}
+cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:seedset"), each = 2)),
+      rbind(mrpmm_cor(fit_MR2, "embryo_endo_costs", "seedset", "phylo", "units", summary = T)[3:4,])) %>% 
+  ggplot(aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), 
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.5, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14)) +
+  coord_flip() + ylim(-1,1) +
+  xlab("") + ylab("estimate") + guides(color=guide_legend("correlation")) +
+  scale_color_manual(labels = c("non-phylogenetic", "phylogenetic"), values = c("red", blues9[7])) +
+  scale_x_discrete(labels = c("embryo_endo_costs:seedset" = bquote("log10(seed mass)~log10(seedset)")))
+```
+
+#### seed size \~ prop pollen-attract to success
+
+```{r}
+trait <- c("embryo_endo_costs", "prop_prepollen_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR3 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_prepollen_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+```
+
+#### seed size \~ prop provisioning to success
+
+```{r}
+trait <- c("embryo_endo_costs", "prop_postpollen_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR4 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_postpollen_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+```
+
+#### seedset \~ prop success costs to attraction
+
+```{r}
+trait <- c("seedset", "prop_pollen_attract_vs_success")
+
+C <- MCMCglmm::inverseA(phy)$Ainv
+
+p_MR <- list(R = list(V=diag(2), nu=2), # uninformative prior
+             G = list(G1=list(V=diag(2), nu=2)))
+
+fit_MR5 <- MCMCglmm::MCMCglmm(cbind(seedset, prop_pollen_attract_vs_success) ~ trait-1, # cbind() specifies multivariate response vector
+                     # mev      = c(dat_mean$N_mass.se^2, dat_mean$d13C.se^2, dat_mean$LMA.se^2),
+                      random   = ~us(trait):phylo, # ~us() specifies unstructured covariance matrix
+                      rcov     = ~us(trait):units,
+                      ginv     = list(phylo = C), # pass inv phylo cov mat
+                      family   = c("gaussian","gaussian"), # all Gaussian traits
+                      nitt     = 25000,
+                      burnin   = 5000,
+                      thin     = 20,
+                      data     = as.data.frame(phylogenetic_analysis),
+                      prior    = p_MR,
+                      verbose  = FALSE)
+
+plot(fit_MR5$VCV) # sample chains for phylo components are still a bit lumpy but roughly normal
+round(coda::autocorr(fit_MR5$VCV),2)[,,1] # lag > 0 should be close to 0
+summary(fit_MR5)
+```
+
+### Combined plot
+
+```{r}
+color_models <- c("phy_cor" = "#7D0112", "ind_cor" = "#00AAAB")
+
+data_Fig4 <- 
+  cbind(data.frame(trait_pair=rep(c(
+    "embryo_endo_costs:seedset", "seedset:prop_pollen_attract_vs_success",
+    "embryo_endo_costs:prop_pollen_attract_vs_success", "embryo_endo_costs:prop_prepollen_success",
+    "embryo_endo_costs:prop_postpollen_success"), each = 2)),
+      rbind(
+        mrpmm_cor(fit_MR2, "embryo_endo_costs", "seedset", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR5, "seedset", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR1, "embryo_endo_costs", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR3, "embryo_endo_costs", "prop_prepollen_success", "phylo", "units", summary = T)[3:4,],
+        mrpmm_cor(fit_MR4, "embryo_endo_costs", "prop_postpollen_success", "phylo", "units", summary = T)[3:4,]
+        )
+      ) %>% 
+  mutate(
+    parameter = factor(parameter, levels = c("ind_cor", "phy_cor")),
+    trait_pair = factor(trait_pair, 
+                        levels = c("embryo_endo_costs:prop_postpollen_success",
+                                   "embryo_endo_costs:prop_prepollen_success",
+                                   "embryo_endo_costs:prop_pollen_attract_vs_success",
+                                   "seedset:prop_pollen_attract_vs_success",
+                                   "embryo_endo_costs:seedset"))
+    ) %>%
+  arrange(trait_pair, parameter)
+  
+margins = unit(c(1, 8, 1, 1), 'lines')
+
+Figure4 <- 
+  ggplot(data = data_Fig4, aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed", linewidth = .5) +
+  geom_hline(yintercept=-0.5, linetype="dotted", linewidth = .2) +
+  geom_hline(yintercept=0.5, linetype="dotted", linewidth = .2) +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), size = 0.6,
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.2, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text.x = element_text(size=10),
+        axis.title.x = element_text(size=12),
+        axis.text.y = element_text(size=10, hjust = 0,),
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        plot.margin=margins,
+        legend.text = element_text(size=10),
+        legend.title = element_text(size=12),
+        legend.position = c(.58, 0.87),
+        legend.justification = -1,
+        ) +
+  coord_flip() + 
+  scale_y_continuous(limits = c(-0.78, .78), breaks = c(-0.5, 0, 0.5)) +
+  xlab("") + 
+  ylab("estimate") + 
+  guides(color=guide_legend("Correlation")) +
+  scale_colour_manual(values = c("#7D0112", "#00AAAB"), 
+                      labels = c("phylogenetic", "non-phylogenetic"),
+                      breaks = c("phy_cor", "ind_cor")) +
+  #scale_color_manual(labels = c("non-phylogenetic", "phylogenetic"), values = c("red", blues9[7])) +
+  #  scale_fill_manual(breaks = c("Social", "Economic", "Enviromental), values = c("red", "green", "blue")
+    
+  scale_x_discrete(labels = c(
+      "embryo_endo_costs:seedset" = bquote("A. seed mass ~ seedset"),
+      "seedset:prop_pollen_attract_vs_success" = bquote("B. seedset ~ prop success inv to attraction"),
+      "embryo_endo_costs:prop_pollen_attract_vs_success" = bquote("C. seed mass ~ prop success inv to attraction"),
+      "embryo_endo_costs:prop_prepollen_success" = bquote("D. seed mass ~ prop attraction that is successful"),
+      "embryo_endo_costs:prop_postpollen_success" = bquote("E. seed mass ~ prop provisioning that is successful")
+      ))
+  
+ggsave("ms/Accessory/output/Figure4Nov.png", Figure4, width = 8.5, height= 4.5)
+```
+
+### Final Figure: Combined plot v2
+
+```{r}
+cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:seedset", "seedset:prop_pollen_attract_vs_success", "embryo_endo_costs:prop_pollen_attract_vs_success", "embryo_endo_costs:prop_prepollen_success", "embryo_endo_costs:prop_postpollen_success"), each = 3)),
+      rbind(
+        A_parameters,
+        mrpmm_cor(fit_MR5, "seedset", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,],
+        B_parameters,
+        mrpmm_cor(fit_MR2, "embryo_endo_costs", "seedset", "phylo", "units", summary = T)[3:4,],
+        C_parameters,
+        mrpmm_cor(fit_MR1, "embryo_endo_costs", "prop_pollen_attract_vs_success", "phylo", "units", summary = T)[3:4,],
+        D_parameters,
+        mrpmm_cor(fit_MR3, "embryo_endo_costs", "prop_prepollen_success", "phylo", "units", summary = T)[3:4,],
+        E_parameters,
+        mrpmm_cor(fit_MR4, "embryo_endo_costs", "prop_postpollen_success", "phylo", "units", summary = T)[3:4,]
+        )
+      ) %>% 
+  ggplot(aes(x = trait_pair, y = `50%`, col = parameter)) +
+  geom_hline(yintercept=0, linetype="dashed") +
+  geom_hline(yintercept=0.2, linetype="dotted") +
+  geom_hline(yintercept=-0.2, linetype="dotted") +
+  geom_errorbar(aes(ymin = `2.5%`, ymax = `97.5%`), 
+                width = 0, position = position_dodge(width = 0.4)) +
+  geom_errorbar(aes(ymin = `25%`, ymax = `75%`), 
+                size = 1.5, width = 0, position = position_dodge(width = 0.4)) +
+  geom_point(size = 3, position = position_dodge(width = 0.4)) +
+  theme_classic() + 
+  theme(axis.text = element_text(size=12),
+        axis.title.x = element_text(size=14),
+        legend.text = element_text(size=12),
+        legend.title = element_text(size=14)) +
+  coord_flip() + ylim(-20,20) +
+  xlab("") + ylab("estimate") + guides(color=guide_legend("correlation")) +
+  scale_color_manual(labels = c("non-phylogenetic","model" ,"phylogenetic"), values = c("red", blues9[7], "green")) +
+  scale_x_discrete(labels = c(
+      "seedset:prop_pollen_attract_vs_success" = bquote("log10(seedset)~prop success inv to attraction"),
+      "embryo_endo_costs:seedset" = bquote("log10(seed mass)~log10(seedset)"),
+      "embryo_endo_costs:prop_pollen_attract_vs_success" = bquote("log10(seed mass)~prop success inv to attraction"),
+      "embryo_endo_costs:prop_prepollen_success" = bquote("log10(seed mass)~prop attraction that is successful"),
+      "embryo_endo_costs:prop_postpollen_success" = bquote("log10(seed mass)~prop provisioning that is successful")
+      ))
+```
+
+## Figure 5. Estimates of Reproductive Investment
+
+```{r}
+spp_col <- c(BAER = "#88CCEE", GRBU = "royalblue4", GRSP = "#6699CC", HATE = "#44AA99", 
+           COER = "#999933", PELA = "#117733", PEPU = "#332288", 
+           EPMI = "#AA4499",LEES = "#882255", HEPU ="#DDCC77",
+           BOLE = "#888888", PILI = "red",  PHPH = "#661100", PUTU = "#CC6677")
+```
+
+### Panel 5a
+
+```{r}
+data_5A <- SummaryInd %>%
+  select(species, embryo_endo_inv, repro_inv) %>%
+  filter(embryo_endo_inv > 0)
+
+data_5Ax <- data_5A %>% mutate(
+  ratio_off_seedmass = repro_inv/embryo_endo_inv
+) %>%
+  arrange(ratio_off_seedmass)
+
+min_max_5A <- data_5A %>%
+  dplyr::group_by(species) %>%
+  dplyr::summarise(
+    x_min = min(embryo_endo_inv),
+    x_max = max(embryo_endo_inv)
+    ) %>%
+  dplyr::ungroup()
+
+fit_5A <- smatr::sma(repro_inv ~ embryo_endo_inv * species, data = data_5A, method = "OLS", log = "xy")
+
+lines_to_add_5A <- 
+  fit_5A$groupsummary %>%
+  select(species = group, Slope, Int) %>%
+  left_join(min_max_5A) %>%
+  mutate(
+    y = 10^(Int + Slope*log10(x_min)),
+    yend = 10^(Int + Slope*log10(x_max)),
+        )
+  
+Panel5A <- ggplot(data = data_5A, aes(x=embryo_endo_inv, y =repro_inv)) +
+  geom_point(aes(color = factor(species))) +
+  geom_abline(slope = 1, intercept = 0, linetype =2) +
+  geom_segment(data = lines_to_add_5A, aes(x = x_min, xend = x_max,y = y, yend = yend, color = species)) +
+  scale_colour_manual(values = spp_col, name = "Species") +
+  scale_y_log10(limits = c(0.3,260000), labels = label_log(), breaks = c(1, 10, 100, 1000, 10000, 100000)) +
+  scale_x_log10(limits = c(0.3,260000),labels = label_log(), breaks = c(1, 10, 100, 1000, 10000, 100000)) +
+  labs(
+    x = "Seed investment (mg)",
+    y = "Total reproductive investment (mg)"
+  ) +
+  ggtitle("A") +
+  guides(x.sec = "axis", y.sec = "axis") +
+  theme_classic() +
+  theme(
+    axis.text.x.bottom = element_text(size=11),
+    axis.text.y.left = element_text(size=11),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    legend.position="none",
+    plot.title.position = "plot"
+  )
+  
+```
+
+### Panel 5b
+
+```{r}
+data_5B <- SummaryInd %>%
+  select(species, flower_inv, repro_inv) %>%
+  filter(flower_inv > 0)
+
+data_5Bx <- data_5B %>% mutate(
+  ratio_off = repro_inv/flower_inv
+) %>%
+  arrange(ratio_off)
+
+min_max_5B <- data_5B %>%
+  dplyr::group_by(species) %>%
+  dplyr::summarise(
+    x_min = min(flower_inv),
+    x_max = max(flower_inv)
+    ) %>%
+  dplyr::ungroup()
+
+fit_5B <- smatr::sma(repro_inv ~ flower_inv * species, data = data_5B, method = "OLS", log = "xy")
+
+lines_to_add_5B <- 
+  fit_5B$groupsummary %>%
+  select(species = group, Slope, Int) %>%
+  left_join(min_max_5B) %>%
+  mutate(
+    y = 10^(Int + Slope*log10(x_min)),
+    yend = 10^(Int + Slope*log10(x_max)),
+        )
+
+Panel5B <- ggplot(data = data_5B, aes(x=flower_inv, y =repro_inv)) +
+  geom_point(aes(color = factor(species))) +
+  geom_abline(slope = 1, intercept = 0, linetype =2) +
+  geom_segment(data = lines_to_add_5B, aes(x = x_min, xend = x_max, y = y, yend = yend, color = species)) +
+  scale_colour_manual(values = spp_col, name = "Species") +
+  scale_y_log10(limits = c(0.5,260000), labels = label_log(), breaks = c(1, 10, 100, 1000, 10000, 100000)) +
+  scale_x_log10(limits = c(0.5,260000),labels = label_log(), breaks = c(1, 10, 100, 1000, 10000, 100000)) +
+  labs(
+    x = "Flower mass x bud count (mg)",
+    title = "B"
+  ) +
+  guides(x.sec = "axis", y.sec = "axis") +
+  theme_classic() +
+  theme(
+    axis.text.x.bottom = element_text(size=11),
+    axis.text.y.left = element_text(size=11),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    axis.title.y = element_blank(),
+    plot.title.position = "plot"
+  )
+```
+
+### Combined plot
+
+```{r}
+Figure5 <- grid.arrange(Panel5A, Panel5B, nrow = 1, ncol = 2, widths =c(1, 1.2))
+
+cowplot::save_plot("ms/Accessory/output/Figure5.png", Figure5, base_width = 8, base_height = 4)
+```
+
+## Table 1. Accessory cost values for the species
+
+Showing accessory cost values for the species
+
+```{r}
+
+acc_costs_spp <- dplyr::select(SummarySpp[["mean"]], species, embryo_endo_costs,
+  seedset, repro_costs, prop_prepollen_discarded_vs_all_repro, prop_postpollen_discarded_vs_all_repro,
+  prop_pollen_attract_vs_all_repro, prop_pack_disp_vs_all_repro, prop_embryo_endo_vs_all_repro,
+  success_costs, prop_pollen_attract_vs_all_repro, prop_pollen_attract_vs_success,
+  prop_provisioning_vs_success, embryo_endo_costs, packaging_dispersal_costs, 
+  pollen_attract_costs, prepollen_discarded_costs, postpollen_aborted_costs, repro_inv, seed_count)
+acc_costs_spp$species <- labels.spp.full()
+acc_costs_spp_format <- acc_costs_spp
+for (i in c("embryo_endo_costs", "seedset", "repro_costs", "prop_prepollen_discarded_vs_all_repro",
+  "prop_postpollen_discarded_vs_all_repro", "prop_pollen_attract_vs_all_repro",
+  "prop_pack_disp_vs_all_repro", "prop_embryo_endo_vs_all_repro", "success_costs",
+  "prop_pollen_attract_vs_success", "prop_provisioning_vs_success", "packaging_dispersal_costs",
+  "pollen_attract_costs", "prepollen_discarded_costs", "postpollen_aborted_costs", "repro_inv")) {
+  acc_costs_spp_format[[i]] <- round(acc_costs_spp_format[[i]], digits = 3)
+}
+
+for (i in c("seed_count")) {
+  acc_costs_spp_format[[i]] <- round(acc_costs_spp_format[[i]], digits = 1)
+}
+
+for (i in c("prop_prepollen_discarded_vs_all_repro", "prop_postpollen_discarded_vs_all_repro",
+  "prop_pack_disp_vs_all_repro", "prop_embryo_endo_vs_all_repro", "prop_pollen_attract_vs_all_repro",
+  "prop_pollen_attract_vs_success", "prop_provisioning_vs_success")) {
+  acc_costs_spp_format[[i]] <- round(100 * acc_costs_spp_format[[i]], digits = 2)
+}
+
+acc_costs_spp_format_sorted <- 
+  acc_costs_spp %>%
+    arrange(species) %>%
+    left_join(species %>% select(species = Species_name, spp = Abbreviation)) %>%
+  mutate(
+    `Pollen attraction` = paste0(pollen_attract_costs, " (", format(prop_pollen_attract_vs_all_repro,  nsmall = 1), "%)"),
+    `Packaging and dispersal` = paste0(packaging_dispersal_costs, " (", format(prop_pack_disp_vs_all_repro,  nsmall = 1), "%)"),
+    `Seed size` = paste0(embryo_endo_costs, " (", format(prop_embryo_endo_vs_all_repro,  nsmall = 1), "%)"),
+    `Pollen attraction-d` = paste0(prepollen_discarded_costs, " (", format(prop_prepollen_discarded_vs_all_repro,  nsmall = 1), "%)"),
+    `Packaging and dispersal-d` = paste0(postpollen_aborted_costs, " (", format(prop_postpollen_discarded_vs_all_repro,  nsmall = 1), "%)")
+    ) %>%
+  select(species, spp, seedset, repro_costs, `Pollen attraction`, `Packaging and dispersal`, `Seed size`, 
+         `Pollen attraction-d`, `Packaging and dispersal-d`)
+
+write.csv(acc_costs_spp_format_sorted, file = "ms/Accessory/output/Table01_AccCosts_by_Species.csv", row.names = FALSE)
+```
+
+## Table 2. Estimates of reproductive investment
+
+```{r}
+results <-    
+      dplyr::tibble(
+        xvar = character(0L),
+        n = double(0L),
+        r2 = double(0L)
+      )
+
+for (i in c("total_weight", "embryo_endo_inv", "propagule_inv", "fruit_inv", "flower_inv",
+  "success_inv", "prepollen_success_inv", "pack_disp_success_inv",
+  "discarded_inv")) {
+    yvar <- "repro_inv"
+    xvar <- i
+    data <- subset(SummaryInd, SummaryInd[[xvar]] > 0 & SummaryInd[[yvar]] >
+      0)
+    fit <- sma(data[[yvar]] ~ data[[xvar]], method = "OLS", log = "xy", slope.test = 1)
+    #temp <- as.data.frame(c(xvar, yvar, dplyr::select(fit$groupsummary, r2, pval, Slope, Slope_lowCI, Slope_highCI, Int, Slope_test_p, n)))
+    temp <- as.data.frame(c(xvar, dplyr::select(fit$groupsummary, n, r2)))
+    #colnames(temp)[2] <- "variable"
+    colnames(temp)[1] <- "xvar"
+    results <- dplyr::bind_rows(results, temp)
+}
+
+#results$slope2 <- paste(format(results$Slope, digits = 3), " (", format(results$Slope_lowCI,
+#  digits = 3), " - ", format(results$Slope_highCI, digits = 3), ")", sep = "")
+
+results$r2 <- format(results$r2, digits = 3)
+#results$pval <- format(results$pval, digits = 3)
+
+#results$Slope_test_p <- format(results$Slope_test_p, digits = 3)
+#results <- dplyr::select(results, variable, n, r2, pval)
+
+
+write.csv(results, file = "ms/Accessory/output/Table02_correlations_with_repro_inv.csv",
+  row.names = FALSE)
+```
+
+## Table S3 correlations between repro investment and flower investment by species
+
+```{r}
+yvar <- "repro_inv"
+xvar <- "embryo_endo_inv"
+data <- subset(SummaryInd, SummaryInd[[xvar]] > 0 & SummaryInd[[yvar]] > 0)
+
+fit <- sma(data[[yvar]] ~ data[[xvar]] * data[["species"]], method = "SMA", log = "xy")
+results <- fit$groupsummary
+results$r2 <- format(results$r2, digits = 2)
+results$pval <- format(results$pval, digits = 3)
+acc_slopes <- dplyr::select(results, group, n, r2, pval)
+
+yvar <- "repro_inv"
+xvar <- "flower_inv"
+data <- subset(SummaryInd, SummaryInd[[xvar]] > 0 & SummaryInd[[yvar]] > 0)
+
+fit <- sma(data[[yvar]] ~ data[[xvar]] * data[["species"]], method = "SMA", log = "xy")
+results <- fit$groupsummary
+results$r2 <- format(results$r2, digits = 2)
+results$pval <- format(results$pval, digits = 3)
+acc_slopes2 <- dplyr::select(results, group, n, r2, pval)
+
+acc_slopes <- merge(acc_slopes, acc_slopes2, by = "group")
+
+names(acc_slopes) <- c("species", "n_propagule", "r2_propagule", "p_propagule",
+  "n_flower", "r2_flower", "p_flower")
+
+write.csv(acc_slopes, file = "ms/Accessory/output/Table_S1_extra_flower_invest_vs_all_repro_inv.csv",
+  row.names = FALSE)
+```
+
+```{r}
+color_family <- c("Proteaceae" = "skyblue2", "Fabaceae" = "#661100", "Rutaceae" = "#117733", "Ericaceae" = "#882255", "Lamiaceae" = "#332288", "Thymelaeaceae" = "red")
+
+accessory_using_nutrients <- readr::read_csv("data/accessory_data_in_nutrient_currency.csv")
+ 
+accessory_using_nutrients_species <- accessory_using_nutrients %>%
+  dplyr::filter(seedset > 0) %>%
+  dplyr::select(-individual) %>%
+  #dplyr::select(species, seedset, embryo_endo_costs) %>%
+  dplyr::group_by(species) %>%
+  #dplyr::mutate(across(c("seedset", "embryo_endo_costs"), ~mean(.x, na.rm = TRUE))) %>%
+  dplyr::mutate(across(c("seedset", "embryo_endo_costs", "prop_N_prepollen_success_vs_all_prepollen", "prop_N_postpollen_success_vs_all_postpollen", "prop_P_prepollen_success_vs_all_prepollen", "prop_P_postpollen_success_vs_all_postpollen", "N_inv_per_packaging_dispersal_success", "N_inv_per_prepollination_success", "N_inv_per_propagule", "P_inv_per_packaging_dispersal_success", "P_inv_per_prepollination_success", "P_inv_per_propagule", "N_inv_one_successful_unit", "N_prop_pollen_attract_vs_success", "P_inv_one_successful_unit", "P_prop_pollen_attract_vs_success", "N_prop_provision_vs_success", "P_prop_provision_vs_success"), ~mean(.x, na.rm = TRUE))) %>%
+  dplyr::ungroup() %>%
+  dplyr::distinct()
+```
+
+## Table S4 Nitrogen
+
+### N data
+
+```{r}
+data <- accessory_using_nutrients_species %>%
+  select(species,
+         embryo_endo_costs = N_inv_per_propagule,
+         seedset,
+         prop_prepollen_success = prop_N_prepollen_success_vs_all_prepollen,
+         prop_postpollen_success = prop_N_postpollen_success_vs_all_postpollen,
+         prop_pollen_attract_vs_success = N_prop_pollen_attract_vs_success,
+         prop_provisioning_vs_success = N_prop_provision_vs_success
+  ) %>%
+left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
+```
+
+### Panel 3A. Division with successfully-matured units
+
+```{r}
+fit3A <- glm(prop_pollen_attract_vs_success ~ log10(seedset),
+             family=gaussian(link="logit"), data =  data)
+
+A <- summary(fit3A)[12] %>% as.data.frame()
+pvalueA <- A[2,4] %>% round(2)
+RsqrA <- formatC(1 - fit3A$deviance/fit3A$null.deviance, format = "f", digits=2) %>% as.character()
+A95 <- parameters::standardize_parameters(fit3A, ci = .95)[2,] %>%
+  as.data.frame()
+A50 <- parameters::standardize_parameters(fit3A, ci = .5)[2,] %>%
+  as.data.frame()
+
+A_parameters <-
+  c("model", A95[4], A50[4], A95[2], A50[5], A95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3A <-
+  ggplot(data = data, aes(x = seedset, y = prop_pollen_attract_vs_success)) +
+    geom_point(aes(col = factor(Family)), size = 2.5) +
+    geom_smooth(aes(x=seedset, y = fit3A$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+  guides(x.sec = "axis", y.sec = "axis") +
+  guides(col = guide_legend(title= "Family")) +
+    labs(
+      x = "Seeds:ovules (seedset)",
+      y = str_wrap("Prop. of successful reproductive N to pollen attraction", width = 32)
+    ) +
+    geom_text(aes(x=.001, y=0.9, label="R^2"), size =4, parse = TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrA, ", p=", pvalueA)), size =4, hjust=0, vjust=0) +
+    ggtitle("A. Division within successfully-matured units") +
+    theme_info
+```
+
+### Panel 3B. Seedsize-seedset
+
+```{r}
+fit3B <- glm(log10(seedset) ~ log10(embryo_endo_costs), data =  data)
+
+B <- summary(fit3B)[12] %>% as.data.frame()
+pvalueB <- B[2,4] %>% round(3)
+RsqrB <- formatC(1 - fit3B$deviance/fit3B$null.deviance, format = "f", digits=2) %>% as.character()
+
+B95 <- parameters::standardize_parameters(fit3B, ci = .95)[2,] %>%
+  as.data.frame()
+B50 <- parameters::standardize_parameters(fit3B, ci = .5)[2,] %>%
+  as.data.frame()
+
+B_parameters <-
+  c("model", B95[4], B50[4], B95[2], B50[5], B95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3B <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = seedset)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = 10^(fit3B$fitted.values)), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_y_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed N content (mg)",
+      y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
+    ) +
+    geom_text(aes(x=.005, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
+    ggtitle("B. Seed N content - seedset relationship") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3C. Seedsize-prop_postpollen_success
+
+```{r}
+fit3C <- glm(prop_pollen_attract_vs_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+C <- summary(fit3C)[12] %>% as.data.frame()
+pvalueC <- C[2,4] %>% round(4)
+RsqrC <- formatC(1 - fit3C$deviance/fit3C$null.deviance, format = "f", digits=2) %>% as.character()
+C95 <- parameters::standardize_parameters(fit3C, ci = .95)[2,] %>%
+  as.data.frame()
+C50 <- parameters::standardize_parameters(fit3C, ci = .5)[2,] %>%
+  as.data.frame()
+
+C_parameters <-
+  c("model", C95[4], C50[4], C95[2], C50[5], C95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3C <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_pollen_attract_vs_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3C$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+    guides(x.sec = "axis", y.sec = "axis") +
+  scale_color_manual(values = color_family) + 
+    labs(
+      x = "Seed N content (mg)",
+      y = str_wrap("Prop. of successful reproductive N to pollen attraction", width = 32)
+    ) +
+    geom_text(aes(x=.005, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.9, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
+    ggtitle("C. Division within successfully-matured units") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3D. Seedsize-prop pollen-attraction to success
+
+```{r}
+fit3D <- glm(prop_prepollen_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+D <- summary(fit3D)[12] %>% as.data.frame()
+pvalueD <- D[2,4] %>% round(3)
+RsqrD <- formatC(1 - fit3D$deviance/fit3D$null.deviance, format = "f", digits=2) %>% as.character()
+
+D95 <- parameters::standardize_parameters(fit3D, ci = .95)[2,] %>%
+  as.data.frame()
+D50 <- parameters::standardize_parameters(fit3D, ci = .5)[2,] %>%
+  as.data.frame()
+
+D_parameters <-
+  c("model", D95[4], D50[4], D95[2], D50[5], D95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3D <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_prepollen_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3D$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed N content (mg)",
+      y = str_wrap("Prop. of pollen-attraction N to successful units", width = 32)
+    ) +
+    geom_text(aes(x=.005, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
+    ggtitle("D. Division of pollen-attraction investment") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3E. Seedsize-prop provisioning to success
+
+```{r}
+fit3E <- glm(prop_postpollen_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+E <- summary(fit3E)[12] %>% as.data.frame()
+pvalueE <- E[2,4] %>% round(3)
+RsqrE <- formatC(1 - fit3E$deviance/fit3E$null.deviance, format = "f", digits=2) %>% as.character()
+
+E95 <- parameters::standardize_parameters(fit3E, ci = .95)[2,] %>%
+  as.data.frame()
+E50 <- parameters::standardize_parameters(fit3E, ci = .5)[2,] %>%
+  as.data.frame()
+
+E_parameters <-
+  c("model", E95[4], E50[4], E95[2], E50[5], E95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3E <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3E$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.005,5.0), labels = label_log(), breaks = c(.001,.01, .1, 1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed N content (mg)",
+      y = str_wrap("Prop. of provisioning N to successful units", width = 40)
+    ) +
+    geom_text(aes(x=.005, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.005, y=0.01, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
+    ggtitle("E. Division of provisioning investment") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Combined plot
+
+```{r}
+Empty_Grob <- 
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
+  theme_classic() +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank()
+  )
+
+Figure3N_top_row <- arrangeGrob(Panel3A, Empty_Grob, ncol = 2, widths = c(1.5, 0.5))
+
+Figure3N_bottom_rows <- arrangeGrob(Panel3B, Panel3C, Panel3D, Panel3E, ncol = 2, widths = c(1, 1))
+
+Figure3N <- arrangeGrob(Figure3N_top_row, Figure3N_bottom_rows, nrow = 2, ncol = 1, heights =c(1, 2))
+
+grid::grid.draw(Figure3N)
+
+cowplot::save_plot("ms/Accessory/output/Figure3N.png", Figure3N, base_width = 6, base_height = 8.5)
+
+```
+
+## Table S5 Phosphorus
+
+### Phosphorus data
+
+```{r}
+data <- accessory_using_nutrients_species %>%
+  select(species,
+         embryo_endo_costs = P_inv_per_propagule,
+         seedset,
+         prop_prepollen_success = prop_P_prepollen_success_vs_all_prepollen,
+         prop_postpollen_success = prop_P_postpollen_success_vs_all_postpollen,
+         prop_pollen_attract_vs_success = P_prop_pollen_attract_vs_success,
+         prop_provisioning_vs_success = P_prop_provision_vs_success
+  ) %>%
+left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
+```
+
+### Panel 3A. Division with successfully-matured units
+
+```{r}
+fit3A <- glm(prop_pollen_attract_vs_success ~ log10(seedset),
+             family=gaussian(link="logit"), data =  data)
+
+A <- summary(fit3A)[12] %>% as.data.frame()
+pvalueA <- A[2,4] %>% round(2)
+RsqrA <- formatC(1 - fit3A$deviance/fit3A$null.deviance, format = "f", digits=2) %>% as.character()
+A95 <- parameters::standardize_parameters(fit3A, ci = .95)[2,] %>%
+  as.data.frame()
+A50 <- parameters::standardize_parameters(fit3A, ci = .5)[2,] %>%
+  as.data.frame()
+
+A_parameters <-
+  c("model", A95[4], A50[4], A95[2], A50[5], A95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3A <-
+  ggplot(data = data, aes(x = seedset, y = prop_pollen_attract_vs_success)) +
+    geom_point(aes(col = factor(Family)), size = 2.5) +
+    geom_smooth(aes(x=seedset, y = fit3A$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.001,1), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+  guides(x.sec = "axis", y.sec = "axis") +
+  guides(col = guide_legend(title= "Family")) +
+    labs(
+      x = "Seeds:ovules (seedset)",
+      y = str_wrap("Prop. of successful reproductive P to pollen attraction", width = 32)
+    ) +
+    geom_text(aes(x=.001, y=0.9, label="R^2"), size =4, parse = TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.001, y=0.9, label=paste("    =", RsqrA, ", p=", pvalueA)), size =4, hjust=0, vjust=0) +
+    ggtitle("A. Division within successfully-matured units") +
+    theme_info
+```
+
+### Panel 3B. Seedsize-seedset
+
+```{r}
+fit3B <- glm(log10(seedset) ~ log10(embryo_endo_costs), data =  data)
+
+B <- summary(fit3B)[12] %>% as.data.frame()
+pvalueB <- B[2,4] %>% round(3)
+RsqrB <- formatC(1 - fit3B$deviance/fit3B$null.deviance, format = "f", digits=2) %>% as.character()
+
+B95 <- parameters::standardize_parameters(fit3B, ci = .95)[2,] %>%
+  as.data.frame()
+B50 <- parameters::standardize_parameters(fit3B, ci = .5)[2,] %>%
+  as.data.frame()
+
+B_parameters <-
+  c("model", B95[4], B50[4], B95[2], B50[5], B95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3B <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = seedset)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
+    scale_y_log10(limits = c(0.001,1.2), labels = label_log(), breaks = c(.001, .01, .1, 1)) +
+    geom_smooth(aes(x=embryo_endo_costs, y = 10^(fit3B$fitted.values)), colour="#CC1A36") + 
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed P content (mg)",
+      y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
+    ) +
+    geom_text(aes(x=.000001, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
+    ggtitle("B. Seed P - seedset relationship") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3C. Seedsize-prop_postpollen_success
+
+```{r}
+fit3C <- glm(prop_pollen_attract_vs_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+C <- summary(fit3C)[12] %>% as.data.frame()
+pvalueC <- C[2,4] %>% round(7)
+RsqrC <- formatC(1 - fit3C$deviance/fit3C$null.deviance, format = "f", digits=2) %>% as.character()
+C95 <- parameters::standardize_parameters(fit3C, ci = .95)[2,] %>%
+  as.data.frame()
+C50 <- parameters::standardize_parameters(fit3C, ci = .5)[2,] %>%
+  as.data.frame()
+
+C_parameters <-
+  c("model", C95[4], C50[4], C95[2], C50[5], C95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3C <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_pollen_attract_vs_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3C$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+    guides(x.sec = "axis", y.sec = "axis") +
+  scale_color_manual(values = color_family) + 
+    labs(
+      x = "Seed P content (mg)",
+      y = str_wrap("Prop. of successful reproductive P to pollen attraction", width = 32)
+    ) +
+    geom_text(aes(x=.000001, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.01, label=paste("    =", RsqrC, ", p=", pvalueC)), size=4, hjust=0, vjust=0, parse=FALSE) +
+    ggtitle("C. Division within successfully-matured units") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3D. Seedsize-prop pollen-attraction to success
+
+```{r}
+fit3D <- glm(prop_prepollen_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+D <- summary(fit3D)[12] %>% as.data.frame()
+pvalueD <- D[2,4] %>% round(3)
+RsqrD <- formatC(1 - fit3D$deviance/fit3D$null.deviance, format = "f", digits=2) %>% as.character()
+
+D95 <- parameters::standardize_parameters(fit3D, ci = .95)[2,] %>%
+  as.data.frame()
+D50 <- parameters::standardize_parameters(fit3D, ci = .5)[2,] %>%
+  as.data.frame()
+
+D_parameters <-
+  c("model", D95[4], D50[4], D95[2], D50[5], D95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3D <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_prepollen_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3D$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed P content (mg)",
+      y = str_wrap("Prop. of pollen-attraction P to successful units", width = 32)
+    ) +
+    geom_text(aes(x=.000001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.9, label=paste("    =", RsqrD, ", p=", pvalueD)), size=4, hjust=0, vjust=0) +
+    ggtitle("D. Division of pollen-attraction investment") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Panel 3E. Seedsize-prop provisioning to success
+
+```{r}
+fit3E <- glm(prop_postpollen_success ~ log10(embryo_endo_costs), data =  data,
+           family=gaussian(link="logit"))
+
+E <- summary(fit3E)[12] %>% as.data.frame()
+pvalueE <- E[2,4] %>% round(3)
+RsqrE <- formatC(1 - fit3E$deviance/fit3E$null.deviance, format = "f", digits=2) %>% as.character()
+
+E95 <- parameters::standardize_parameters(fit3E, ci = .95)[2,] %>%
+  as.data.frame()
+E50 <- parameters::standardize_parameters(fit3E, ci = .5)[2,] %>%
+  as.data.frame()
+
+E_parameters <-
+  c("model", E95[4], E50[4], E95[2], E50[5], E95[5]) %>% 
+  as.data.frame() %>%
+  dplyr::rename(parameter = 1, `2.5%` = 2, `25%`=3, `50%`=4, `75%`=5, `97.5%`=6)
+
+Panel3E <-
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
+    geom_point(aes(col = factor(Family)), size =2.5) +
+    geom_smooth(aes(x=embryo_endo_costs, y = fit3E$fitted.values), colour="#CC1A36") + 
+    scale_x_log10(limits = c(0.000001,0.5), labels = label_log(), breaks = c(.000001, .00001, .0001, .001, .01, .1)) +
+    scale_y_continuous(limits = c(0,1), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  scale_color_manual(values = color_family) + 
+    guides(x.sec = "axis", y.sec = "axis") +
+    labs(
+      x = "Seed P content (mg)",
+      y = str_wrap("Prop. of provisioning P to successful units", width = 40)
+    ) +
+    geom_text(aes(x=.000001, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
+    geom_text(aes(x=.000001, y=0.9, label=paste("    =", RsqrE, ", p=", pvalueE)), size=4, hjust=0, vjust=0) +
+    ggtitle("E. Division of provisioning investment") +
+    theme_info +
+  theme(legend.position = "none")
+```
+
+### Combined plot
+
+```{r}
+Empty_Grob <- 
+  ggplot(data = data, aes(x = embryo_endo_costs, y = prop_postpollen_success)) +
+  theme_classic() +
+  theme(
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title = element_blank(),
+    axis.line = element_blank()
+  )
+
+Figure3P_top_row <- arrangeGrob(Panel3A, Empty_Grob, ncol = 2, widths = c(1.5, 0.5))
+
+Figure3P_bottom_rows <- arrangeGrob(Panel3B, Panel3C, Panel3D, Panel3E, ncol = 2, widths = c(1, 1))
+
+Figure3P <- arrangeGrob(Figure3P_top_row, Figure3P_bottom_rows, nrow = 2, ncol = 1, heights =c(1, 2))
+
+grid::grid.draw(Figure3P)
+
+cowplot::save_plot("ms/Accessory/output/Figure3P.png", Figure3P, base_width = 6, base_height = 8.5)
+
+```
+
+## Extras - PCA
+
+```{r}
+data <- SummarySpp[["mean"]] %>%
+  select(species,
+         embryo_endo_costs,
+         seedset,
+         prop_prepollen_success,
+         prop_postpollen_success,
+         prop_pollen_attract_vs_success,
+         prop_provisioning_vs_success
+  ) %>%
+  left_join(species_full %>% dplyr::select(Abbreviation, Family) %>% dplyr::rename(species = Abbreviation))
+
+# remove prop_provisioning_vs_success, because 1:1 correlation with `prop_pollen_attract_vs_success`, since they sum to 1
+for_PCA <- 
+  data %>% 
+  dplyr::select(-species, -prop_provisioning_vs_success, -Family) %>%
+  vegan::decostand(method = "standardize") # since different scaling for different traits
+
+PCA_accessory <- princomp(for_PCA)
+
+summary(PCA_accessory)
+
+PCA_loadings <- loadings(PCA_accessory)
+
+PCA_to_plot <- data.frame(PCA_accessory$scores) 
+
+PCA_to_plot$species <- data$species
+PCA_to_plot$family <- data$Family
+
+ggplot() +
+  geom_point(aes(Comp.1, Comp.2, col = factor(family)), data = PCA_to_plot, size =2.5) +
+  scale_color_manual(values = color_family) +
+  theme_classic()
+```
