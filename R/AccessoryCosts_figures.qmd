@@ -84,7 +84,7 @@ Figure_2 <-
     plot.title = element_text(hjust = 0.5, size = 10)
     )
 
-ggsave("ms/Accessory/output/Figure2.png", plot = Figure_2, width = 7, height = 3.5)
+ggsave("ms/Accessory/output/Figure2.pdf", plot = Figure_2, width = 7, height = 3.5)
 ```
 
 ## Figure 3. Regressions
@@ -329,7 +329,7 @@ Figure3 <- arrangeGrob(Figure3_top_row, Figure3_bottom_rows, nrow = 2, ncol = 1,
 
 grid::grid.draw(Figure3)
 
-cowplot::save_plot("ms/Accessory/output/Figure3.png", Figure3, base_width = 6, base_height = 8.5)
+cowplot::save_plot("ms/Accessory/output/Figure3.pdf", Figure3, base_width = 6, base_height = 8.5)
 
 ```
 
@@ -388,7 +388,9 @@ data <- species_full |>
 
 phy_new <- V.PhyloMaker2::phylo.maker(data)
 
-plot(phylo$scenario.3)
+phylogeny_plot <- plot(phy_new$scenario.3)
+
+ggsave("ms/Accessory/output/Phylogeny.pdf", plot = phylogeny_plot, width = 8, height = 3)
 ```
 
 
@@ -687,7 +689,7 @@ Figure4 <-
       "embryo_endo_costs:prop_postpollen_success" = bquote("E. seed mass ~ prop provisioning that is successful")
       ))
   
-ggsave("ms/Accessory/output/Figure4Nov.png", Figure4, width = 8.5, height= 4.5)
+ggsave("ms/Accessory/output/Figure4Nov.pdf", Figure4, width = 8.5, height= 4.5)
 ```
 
 ### Final Figure: Combined plot v2
@@ -861,7 +863,7 @@ Panel5B <- ggplot(data = data_5B, aes(x=flower_inv, y =repro_inv)) +
 ```{r}
 Figure5 <- grid.arrange(Panel5A, Panel5B, nrow = 1, ncol = 2, widths =c(1, 1.2))
 
-cowplot::save_plot("ms/Accessory/output/Figure5.png", Figure5, base_width = 8, base_height = 4)
+cowplot::save_plot("ms/Accessory/output/Figure5.pdf", Figure5, base_width = 8, base_height = 4)
 ```
 
 ## Table 1. Accessory cost values for the species
