@@ -390,7 +390,7 @@ phy_new <- V.PhyloMaker2::phylo.maker(data)
 
 phylogeny_plot <- plot(phy_new$scenario.3)
 
-ggsave("ms/Accessory/output/Phylogeny.pdf", plot = phylogeny_plot, width = 8, height = 3)
+ggsave("ms/Accessory/Phylogeny.pdf", plot = phylogeny_plot, width = 8, height = 3)
 ```
 
 
