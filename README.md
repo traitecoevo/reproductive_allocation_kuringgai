@@ -1,8 +1,11 @@
 # Studies on Reproductive Allocation for 14 plant species in Kuringgai National Park, Australia
 
-This repository contains code needed to reproduce the article:
+This repository contains code needed to reproduce the figures in the following articles:
 
-**Wenk EH, Abramowicz K, Westoby M, & Falster DS** (2018) Investment in reproduction for 14 iteroparous perennials is large and associated with other life-history and functional traits. Journal of Ecology (in press).
+**Wenk EH, Abramowicz K, Westoby M, & Falster DS** (2018) Investment in reproduction for 14 iteroparous perennials is large and associated with other life-history and functional traits. Journal of Ecology 106: 1338-1348.
+
+**Wenk EH, Abramowicz K, Falster DS & Westoby M** (2024) Is allocation among reproductive tissues coordinated with seed size?. Oikos, in press.
+
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1183416.svg)](https://doi.org/10.5281/zenodo.1183416)
 

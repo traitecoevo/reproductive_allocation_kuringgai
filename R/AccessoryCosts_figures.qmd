@@ -84,7 +84,7 @@ Figure_2 <-
     plot.title = element_text(hjust = 0.5, size = 10)
     )
 
-ggsave("ms/Accessory/output/Figure2.pdf", plot = Figure_2, width = 7, height = 3.5)
+ggsave("ms/Accessory/output/Figure2.jpg", plot = Figure_2, width = 7, height = 3.5)
 ```
 
 ## Figure 3. Regressions
@@ -182,12 +182,12 @@ Panel3B <-
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
+      x = "Seed mass (mg)",
       y = str_wrap("Seeds:ovules (seedset)               ", width = 21)
     ) +
     geom_text(aes(x=.01, y=0.001, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
     geom_text(aes(x=.01, y=0.001, label=paste("    =", RsqrB, ", p=", pvalueB)), size=4, hjust=0, vjust=0) +
-    ggtitle("B. Seed size - seedset relationship") +
+    ggtitle("B. Seed mass - seedset relationship") +
     theme_info +
   theme(legend.position = "none")
 ```
@@ -220,7 +220,7 @@ Panel3C <-
     guides(x.sec = "axis", y.sec = "axis") +
   scale_color_manual(values = color_family) + 
     labs(
-      x = "Seed size (mg)",
+      x = "Seed mass (mg)",
       y = str_wrap("Prop. of successful reproductive biomass to pollen attraction", width = 32)
     ) +
     geom_text(aes(x=.01, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
@@ -259,7 +259,7 @@ Panel3D <-
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
+      x = "Seed mass (mg)",
       y = str_wrap("Prop. of pollen-attraction biomass to successful units", width = 32)
     ) +
     geom_text(aes(x=.01, y=0.9, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
@@ -298,7 +298,7 @@ Panel3E <-
   scale_color_manual(values = color_family) + 
     guides(x.sec = "axis", y.sec = "axis") +
     labs(
-      x = "Seed size (mg)",
+      x = "Seed mass (mg)",
       y = str_wrap("Prop. of provisioning biomass to successful units", width = 40)
     ) +
     geom_text(aes(x=.01, y=0.01, label="R^2"), size=4, parse=TRUE, hjust=0, vjust=0) +
@@ -390,7 +390,7 @@ phy_new <- V.PhyloMaker2::phylo.maker(data)
 
 phylogeny_plot <- plot(phy_new$scenario.3)
 
-ggsave("ms/Accessory/Phylogeny.pdf", plot = phylogeny_plot, width = 8, height = 3)
+ggsave("ms/Accessory/output/Phylogeny.pdf", plot = phylogeny_plot, width = 8, height = 3)
 ```
 
 
@@ -442,7 +442,7 @@ rownames(phylogenetic_analysis) <- phylogenetic_analysis$species
 
 ### Pairwise tests
 
-#### seed size \~ prop success costs to attraction
+#### seed mass \~ prop success costs to attraction
 
 ```{r}
 trait <- c("embryo_endo_costs", "prop_pollen_attract_vs_success")
@@ -492,7 +492,7 @@ cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:prop_pollen_attract_vs_succ
   scale_x_discrete(labels = c("embryo_endo_costs:prop_pollen_attract_vs_success" = bquote("log10(seed mass)~prop success inv to attraction")))
 ```
 
-#### seed size \~ seed set
+#### seed mass \~ seed set
 
 ```{r}
 trait <- c("embryo_endo_costs", "seedset")
@@ -541,7 +541,7 @@ cbind(data.frame(trait_pair=rep(c("embryo_endo_costs:seedset"), each = 2)),
   scale_x_discrete(labels = c("embryo_endo_costs:seedset" = bquote("log10(seed mass)~log10(seedset)")))
 ```
 
-#### seed size \~ prop pollen-attract to success
+#### seed mass \~ prop pollen-attract to success
 
 ```{r}
 trait <- c("embryo_endo_costs", "prop_prepollen_success")
@@ -565,7 +565,7 @@ fit_MR3 <- MCMCglmm::MCMCglmm(cbind(embryo_endo_costs, prop_prepollen_success) ~
                       verbose  = FALSE)
 ```
 
-#### seed size \~ prop provisioning to success
+#### seed mass \~ prop provisioning to success
 
 ```{r}
 trait <- c("embryo_endo_costs", "prop_postpollen_success")
@@ -689,7 +689,7 @@ Figure4 <-
       "embryo_endo_costs:prop_postpollen_success" = bquote("E. seed mass ~ prop provisioning that is successful")
       ))
   
-ggsave("ms/Accessory/output/Figure4Nov.pdf", Figure4, width = 8.5, height= 4.5)
+ggsave("ms/Accessory/output/Figure4Nov.pdf", Figure4, width = 9, height= 4.5)
 ```
 
 ### Final Figure: Combined plot v2
@@ -905,11 +905,11 @@ acc_costs_spp_format_sorted <-
   mutate(
     `Pollen attraction` = paste0(pollen_attract_costs, " (", format(prop_pollen_attract_vs_all_repro,  nsmall = 1), "%)"),
     `Packaging and dispersal` = paste0(packaging_dispersal_costs, " (", format(prop_pack_disp_vs_all_repro,  nsmall = 1), "%)"),
-    `Seed size` = paste0(embryo_endo_costs, " (", format(prop_embryo_endo_vs_all_repro,  nsmall = 1), "%)"),
+    `Seed mass` = paste0(embryo_endo_costs, " (", format(prop_embryo_endo_vs_all_repro,  nsmall = 1), "%)"),
     `Pollen attraction-d` = paste0(prepollen_discarded_costs, " (", format(prop_prepollen_discarded_vs_all_repro,  nsmall = 1), "%)"),
     `Packaging and dispersal-d` = paste0(postpollen_aborted_costs, " (", format(prop_postpollen_discarded_vs_all_repro,  nsmall = 1), "%)")
     ) %>%
-  select(species, spp, seedset, repro_costs, `Pollen attraction`, `Packaging and dispersal`, `Seed size`, 
+  select(species, spp, seedset, repro_costs, `Pollen attraction`, `Packaging and dispersal`, `Seed mass`, 
          `Pollen attraction-d`, `Packaging and dispersal-d`)
 
 write.csv(acc_costs_spp_format_sorted, file = "ms/Accessory/output/Table01_AccCosts_by_Species.csv", row.names = FALSE)
