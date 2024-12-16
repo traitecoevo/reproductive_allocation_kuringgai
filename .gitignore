@@ -2,13 +2,11 @@
 .Rhistory
 .RData
 ignore
-output
 .DS_Store
 .remake
 *.html
 talk.md
 talk.pdf
-output/*
 figure/*
 #ms/Accessory/Wenk-Accessory-SI.tex
 ms/Accessory/Wenk-Accessory-SI.pdf
