@@ -1,18 +1,24 @@
-library("stats")
-library("stringr")
-library("smatr")
-library("plyr")
-library("tidyr")
-library("dplyr")
-library("xtable")
-library("igraph")
-library("rmarkdown")
-library("broom")
-library("ggtern")
-library("ggmap")
-library("yaml")
-library("mgcv")
-library("knitr")
+
+# Load libraries
+
+library(stats)
+library(stringr)
+library(smatr)
+library(plyr)
+library(tidyr)
+library(dplyr)
+library(xtable)
+library(igraph)
+library(rmarkdown)
+library(broom)
+library(ggtern)
+library(ggmap)
+library(yaml)
+library(mgcv)
+library(knitr)
+
+# Source functions
+
 source("R/figures.R")
 source("R/FlowerParts.R")
 source("R/GraphRepresentation.R")
@@ -26,14 +32,19 @@ source("R/Species.R")
 source("R/Summaries.R")
 source("R/Utils.R")
 source("R/WeightCalculations.R")
+
+# Create directories for outputs
+
 dir.create("ms/RA/figures", FALSE, TRUE)
 dir.create("ms", FALSE, TRUE)
 dir.create("export", FALSE, TRUE)
+
+# Figures
+
 pdf("ms/RA/figures/schematic.pdf", height = 2.5, width = 7.5)
 plotRASexamples()
 dev.off()
-library("remake")
-make_script(file = "analysis.R")
+
 BAER_PartsList <- make_OrderedListsOfParts_BAER()
 BOLE_PartsList <- make_OrderedListsOfParts_BOLE()
 COER_PartsList <- make_OrderedListsOfParts_COER()
@@ -48,9 +59,11 @@ PEPU_PartsList <- make_OrderedListsOfParts_PEPU()
 PHPH_PartsList <- make_OrderedListsOfParts_PHPH()
 PILI_PartsList <- make_OrderedListsOfParts_PILI()
 PUTU_PartsList <- make_OrderedListsOfParts_PUTU()
+
 pdf("ms/map.pdf", width = 4L, height = 4L)
 figure_site_map("data/sites.csv")
 dev.off()
+
 IndividualsList <- read_csv("data/individuals.csv")
 FlowerPartsData <- read_csv("data/flowerParts.csv")
 Reproduction_raw <- read_csv("data/reproduction.csv")
@@ -60,6 +73,7 @@ HarvestData <- preprocessHarvest(HarvestData_raw, IndividualsList)
 FloweringCategories <- read_csv("data/flowerCategories.csv")
 MultiplierTable <- read_csv("data/multiplierTable.csv")
 InvestmentCategories <- yaml.load_file("data/accessoryParts.yml")
+
 LMA_1 <- read_csv("data/LMA.csv")
 LMA <- process_LMA(LMA_1)
 wood_density_spp1 <- read_csv("data/woodDensity.csv")
@@ -69,8 +83,10 @@ leavesPerLength_1 <- read_csv("data/leaves_per_length.csv")
 leavesPerLength <- process_leaves_per_length(leavesPerLength_1)
 leafLoss_1 <- read_csv("data/leaderGrowthLL.csv")
 leafLoss <- process_leaf_loss(leafLoss_1, leavesPerLength)
+
 variable_list <- read_csv("data/variable_metadata.csv")
 write.csv(variable_list, "export/Variable_metadata.csv", row.names = FALSE)
+
 BAER_IndividualsList <- filterToBAER(IndividualsList)
 BAER_FlowerPartsData <- filterToBAER(FlowerPartsData)
 BAER_HarvestData <- filterToBAER(HarvestData)
@@ -199,5 +215,6 @@ PUTU_ReproductiveCosts <- CalculateReproductiveCostsForPUTU(PUTU_IndividualsList
 PUTU_Growth <- CalculateGrowthForPUTU(PUTU_HarvestData, PUTU_IndividualsList)
 Growth_all <- combine_Growth(BAER_Growth, BOLE_Growth, COER_Growth, EPMI_Growth, GRBU_Growth, GRSP_Growth, HATE_Growth, HEPU_Growth, LEES_Growth, PELA_Growth, PEPU_Growth, PHPH_Growth, PILI_Growth, PUTU_Growth, NULL)
 write.csv(SummaryInd, "export/SummaryInd.csv", row.names = FALSE)
+
 PartsSummary_all <- combine_list_elements(BAER_PartsSummary, BOLE_PartsSummary, COER_PartsSummary, EPMI_PartsSummary, GRBU_PartsSummary, GRSP_PartsSummary, HATE_PartsSummary, HEPU_PartsSummary, LEES_PartsSummary, PELA_PartsSummary, PEPU_PartsSummary, PHPH_PartsSummary, PILI_PartsSummary, PUTU_PartsSummary, element = "AvWeightPerUnit")
 Investment_FD_all <- combine_list_elements(BAER_Investment, BOLE_Investment, COER_Investment, EPMI_Investment, GRBU_Investment, GRSP_Investment, HATE_Investment, HEPU_Investment, LEES_Investment, PELA_Investment, PEPU_Investment, PHPH_Investment, PILI_Investment, PUTU_Investment, element = "FD")

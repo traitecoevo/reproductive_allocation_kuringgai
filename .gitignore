@@ -1,6 +1,9 @@
 .Rproj*
 .Rhistory
 .RData
+.local
+.cache
+.config
 ignore
 .DS_Store
 .remake
