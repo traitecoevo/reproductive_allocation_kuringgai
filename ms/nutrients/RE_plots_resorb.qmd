@@ -1,0 +1,334 @@
+---
+title: "nutrient plots"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+### Libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+```
+
+### Plot functions
+```{r}
+box <- tibble(
+  y = c(0,1,1,0), 
+  x2 = c(1.4,1.4,32,32))
+
+extra <-
+      tibble(
+        RE_N = c(0,0),
+        RE_P = c(0,0),
+        RE_C = c(0,0),
+        RE_C_propagule = c(0,0),
+        RE_N_propagule = c(0,0),
+        RE_P_propagule = c(0,0)
+      )
+
+spp <- c("BOLE", "GRSP", "PILI", "HEPU", "EPMI", "GRBU", "LEES", "PUTU", "COER", "HATE", "PHPH", "BAER", "PEPU", "PELA")
+
+RE_nutrient_graphs <-
+  SummaryInd_nutrient %>%
+  select(species,age, RE_C, RE_C_propagule, RE_N, RE_N_propagule, RE_P, RE_P_propagule) %>%
+  mutate(
+    RE_N = ifelse(is.na(RE_N)|is.nan(RE_N),0,RE_N),
+    RE_P = ifelse(is.na(RE_P)|is.nan(RE_P),0,RE_P),
+    RE_N_propagule = ifelse(is.na(RE_N_propagule)|is.nan(RE_N_propagule),0,RE_N_propagule),
+    RE_P_propagule = ifelse(is.na(RE_P_propagule)|is.nan(RE_P_propagule),0,RE_P_propagule),
+    species = factor(species, levels = spp)
+    ) %>% 
+  group_by(species, age) %>%
+    dplyr::summarise(across(.fns = mean, na.rm= TRUE)) %>%
+  ungroup()
+
+plot_RE_lowest_panel <- function(RE_nutrient_graphs, spp, box = box, extra = extra) { 
+    
+    x <- c(1.4,2.4,5,7,9,32,32,1.4)
+    if(spp %in% c("PILI")) x <- c(1.4,2.4,5,7,7,1.4)
+    if(spp %in% c("PHPH"))  x <- c(2.4,5,7,9,32,32,2.4)
+    if(spp %in% c("BOLE", "COER", "HEPU", "GRSP"))  x <- c(1.4,2.4,5,7,9,9,1.4)
+    n <- length(x)-2
+    y0 <- c(rep(1,n), 0, 0)
+    
+    nutrient_data <- 
+      RE_nutrient_graphs %>% 
+      filter(species == spp)
+    
+    box <- box %>%
+      mutate(x = c(1.4, 1.4, max(nutrient_data$age), max(nutrient_data$age)))
+    
+    extra <- extra %>%
+      mutate(
+        species = c(spp, spp),
+        age = c(max(nutrient_data$age), min(nutrient_data$age))
+      )
+        
+    nutrient_data <- nutrient_data %>% bind_rows(extra)
+    
+    g_C <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_C), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_C_propagule), fill = "coral1") + 
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      annotate("text", x=1.5, y=0.8, hjust = 0, fontface = "italic", label= labels.spp.full(spp), size = 3) +
+      theme_minimal() +
+      theme(
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_text(size = 7),
+        axis.text.x=element_text(size = 7),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.2),"cm")
+        ) 
+    
+    g_N <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_N), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_N_propagule), fill = "coral1") +
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      theme_minimal()  +
+      theme(
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size = 7),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.05),"cm")
+        )
+        
+     g_P <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_P), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_P_propagule), fill = "coral1") +
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      theme_minimal()  +
+      theme(
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_text(size = 7),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.05),"cm")
+        )
+    
+     output_panel <- arrangeGrob(g_C, g_N, g_P, nrow = 1, ncol = 3, widths =c(1.2, 1, 1))
+     
+     output_panel
+     
+}
+
+plot_RE_panel_top <- function(RE_nutrient_graphs, spp, box = box, extra = extra) { 
+    
+    x <- c(1.4,2.4,5,7,9,32,32,1.4)
+    if(spp %in% c("PILI")) x <- c(1.4,2.4,5,7,7,1.4)
+    if(spp %in% c("PHPH"))  x <- c(2.4,5,7,9,32,32,2.4)
+    if(spp %in% c("BOLE", "COER", "HEPU", "GRSP"))  x <- c(1.4,2.4,5,7,9,9,1.4)
+    n <- length(x)-2
+    y0 <- c(rep(1,n), 0, 0)
+    
+    nutrient_data <- 
+      RE_nutrient_graphs %>% 
+      filter(species == spp)
+    
+    
+    box <- box %>%
+      mutate(x = c(1.4, 1.4, max(nutrient_data$age), max(nutrient_data$age)))
+    
+    extra <- extra %>%
+      mutate(
+        species = c(spp, spp),
+        age = c(max(nutrient_data$age), min(nutrient_data$age))
+      )
+        
+    nutrient_data <- nutrient_data %>% bind_rows(extra)
+    
+    g_C <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_C), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_C_propagule), fill = "coral1") + 
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      annotate("text", x=1.5, y=0.8, hjust = 0, fontface = "italic", label= labels.spp.full(spp), size = 3) +
+      ggtitle("RE on dry mass basis") +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 9),
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_text(size=7),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.2),"cm")
+        ) 
+    
+    g_N <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_N), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_N_propagule), fill = "coral1") +
+      ggtitle("RE based on N") +
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      theme_minimal()  +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 9),
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.05),"cm")
+        )
+        
+     g_P <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_P), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_P_propagule), fill = "coral1") +
+      ggtitle("RE based on P") +
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      theme_minimal()  +
+      theme(
+        plot.title = element_text(hjust = 0.5, size = 9),
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.05),"cm")
+        )
+    
+     output_panel <- arrangeGrob(g_C, g_N, g_P, nrow = 1, ncol = 3, widths =c(1.2, 1, 1))
+     
+     output_panel
+     
+    }
+
+plot_RE_panels <- function(RE_nutrient_graphs, spp, box = box, extra = extra) { 
+    
+    x <- c(1.4,2.4,5,7,9,32,32,1.4)
+    if(spp %in% c("PILI")) x <- c(1.4,2.4,5,7,7,1.4)
+    if(spp %in% c("PHPH"))  x <- c(2.4,5,7,9,32,32,2.4)
+    if(spp %in% c("BOLE", "COER", "HEPU", "GRSP"))  x <- c(1.4,2.4,5,7,9,9,1.4)
+    n <- length(x)-2
+    y0 <- c(rep(1,n), 0, 0)
+    
+    nutrient_data <- 
+      RE_nutrient_graphs %>% 
+      filter(species == spp)
+    
+    
+    box <- box %>%
+      mutate(x = c(1.4, 1.4, max(nutrient_data$age), max(nutrient_data$age)))
+    
+    extra <- extra %>%
+      mutate(
+        species = c(spp, spp),
+        age = c(max(nutrient_data$age), min(nutrient_data$age))
+      )
+        
+    nutrient_data <- nutrient_data %>% bind_rows(extra)
+    
+    g_C <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_C), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_C_propagule), fill = "coral1") + 
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      annotate("text", x=1.5, y=0.8, hjust = 0, fontface = "italic", label= labels.spp.full(spp), size= 3) +
+      theme_minimal() +
+      theme(
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text.y=element_text(size=6),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.2),"cm")
+        ) 
+    
+    g_N <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_N), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_N_propagule), fill = "coral1") +
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      theme_minimal()  +
+      theme(
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.05),"cm")
+        )
+        
+     g_P <- ggplot() + 
+      geom_polygon(data = box, mapping = aes(x = x2, y = y), fill = "grey90") +
+      geom_polygon(data = box, mapping = aes(x = x, y = y), fill = "darkseagreen2") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_P), fill = "coral3") +
+      geom_polygon(data = nutrient_data, mapping = aes(x = age, y = RE_P_propagule), fill = "coral1") +
+      scale_x_log10(limits = c(1.4, 32), expand = c(0,0), breaks = c(2, 5, 10, 30)) +
+      scale_y_continuous(limits = c(0, 1), expand = c(0,0), breaks = c(0.0, 0.2, 0.4, 0.6, 0.8, 1.0)) +
+      theme_minimal()  +
+      theme(
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.y=element_line(),
+        axis.ticks.x=element_line(),
+        plot.margin=unit(c(.05,.05,.08,.05),"cm")
+        )
+    
+     output_panel <- arrangeGrob(g_C, g_N, g_P, nrow = 1, ncol = 3, widths =c(1.2, 1, 1))
+     
+     output_panel
+     
+    }
+```
+
+### Creating actual figure
+
+```{r}
+
+out_top <- purrr::map("BOLE", plot_RE_panel_top, RE_nutrient_graphs = RE_nutrient_graphs, box, extra)
+out <- purrr::map(spp, plot_RE_panels, RE_nutrient_graphs = RE_nutrient_graphs, box, extra)
+out_lowest <- purrr::map("PELA", plot_RE_lowest_panel, RE_nutrient_graphs = RE_nutrient_graphs, box, extra)
+
+RE_all <- arrangeGrob(out_top[[1]], out[[2]], out[[3]], out[[4]], out[[5]], out[[6]], out[[7]], 
+                       out[[8]], out[[9]], out[[10]], out[[11]], out[[12]], out[[13]], out_lowest[[1]], 
+                      nrow = 14, ncol = 1, heights = c(1.35, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.25),
+                      bottom="Age",
+                      left = "Fraction of mass allocated")
+
+grid.draw(RE_all)
+
+#legend(40, 0.8, c("Vegetative investment", "Reproductive - accessories", "Reproductive - seed"),
+
+
+cowplot::save_plot("ms/nutrients/Figure4_lifetime_RE.jpg", RE_all, base_width = 8, base_height = 11)
+
+```
