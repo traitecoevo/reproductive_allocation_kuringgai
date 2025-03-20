@@ -25,14 +25,14 @@ source("R/figures.R")
 ## Load data
 
 ```{r}
-#remake::make("export")
+#remake::make("output")
 
-SummaryInd <- readRDS("export/SummaryInd.rds")
-SummarySpp <- readRDS("export/SummarySpp.rds")
-SummarySppAge <- readRDS("export/SummarySppAge.rds")
-HarvestData <- readRDS("export/HarvestData.rds")
-InvestmentByPart <- readRDS("export/Investment_FD_all.rds")
-PartsSummary <- readRDS("export/PartsSummary_all.rds")
+SummaryInd <- readRDS("output/SummaryInd.rds")
+SummarySpp <- readRDS("output/SummarySpp.rds")
+SummarySppAge <- readRDS("output/SummarySppAge.rds")
+HarvestData <- readRDS("output/HarvestData.rds")
+InvestmentByPart <- readRDS("output/Investment_FD_all.rds")
+PartsSummary <- readRDS("output/PartsSummary_all.rds")
 
 nutrient <- read.csv("data/nutrient_data.csv")
 soil <- read.csv("data/nutrient_soil.csv")
@@ -47,7 +47,7 @@ InvestmentCategories <- yaml.load_file("data/accessoryParts.yml")
 
 ```{r}
 nutrient %>%
-  mutate(N = N/100
+  mutate(N = N/100,
          P = P/10^6,
          K = K/10^6) %>%
   mutate(without_bark_diam_mm =gsub(",",";",without_bark_diam_mm),
