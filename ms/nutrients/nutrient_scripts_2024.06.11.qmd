@@ -173,13 +173,13 @@ repro_NP_investment <-
   InvestIndPart %>%
     left_join(accessory_tissue_nutrient_contents, by=c("species", "parts_to_match")) %>% 
     mutate(dry_mass_mg_per_unit = dry_mass_inv_to_use/count) %>%  
-    mutate(N_mass_repro_tissues = N_live*weight,
-           P_mass_repro_tissues = P_live*weight) %>%
+    mutate(N_mass_repro_tissues = N_live*dry_mass_inv_to_use,
+           P_mass_repro_tissues = P_live*dry_mass_inv_to_use) %>%
     mutate(accessory_simple1 = ifelse(accessory_part %in% c("prepollination_success", "prepollination_abort"), "prepollination_all", ""),
            accessory_simple2 = ifelse(accessory_part %in% c("packaging_dispersal", "postpollination_abort"), "postpollination_all", ""),
            accessory_simple3 = ifelse(accessory_part == "propagule", "propagule",""),
            accessory_simple = paste0(accessory_simple1, accessory_simple2, accessory_simple3)) %>%
-    select(-accessory_simple1, -accessory_simple2, -accessory_simple3)
+    dplyr::select(-accessory_simple1, -accessory_simple2, -accessory_simple3)
 ```
 
 ### Calculate N/P success costs (investment in required tissues per seed)
@@ -581,12 +581,4 @@ nutrient_summary_N_by_age %>%
   ) -> nutrient_summary_by_spp_age
 
 nutrient_summary_by_spp_age[order(-nutrient_summary_by_spp_age$age),] -> nutrient_summary_by_spp_age 
-```
-
-## Stats
-
-### Compare slopes
-
-```{r}
-
 ```

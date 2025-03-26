@@ -23,13 +23,13 @@ library(emmeans)
 ### Color, shape functions
 
 ```{r}
-tissues_colors <- c("propagule" = "red", "accessory" = "coral1", "leaves" = "#41AB5D", "bark" = "darkgrey", "sapwood" = "#BF812D","wood_from_tip" = "#BF812D", "wood_from_middle" = "#BF812D", "wood_from_base" = "#BF812D", "shed_sapwood" = "#BF812D", "senescent_leaves" = "#41AB5D")
+tissues_colors <- c("propagule" = "red", "accessory" = "coral1", "leaves" = "#41AB5D", "bark" = "skyblue1", "sapwood" = "#BF812D","wood_from_tip" = "#BF812D", "wood_from_middle" = "#BF812D", "wood_from_base" = "#7F2704", "shed_sapwood" = "#BF812D", "senescent_leaves" = "#41AB5D")
 
 
 tissues_shapes <- c("propagule" = 16, "accessory" = 16, "leaves" = 16, "bark" = 16, "wood_from_tip" = 16, "wood_from_middle" = 10, 
-                    "wood_from_base" = 10, "shed_sapwood" = 1, "senescent_leaves" = 1, "sapwood" = 16)
+                    "wood_from_base" = 16, "shed_sapwood" = 1, "senescent_leaves" = 1, "sapwood" = 16)
 
-tissues_colors_many <- c("seed" = "red", "seed_pod" = "coral1", "flower_stigma" = "coral1", "bract" = "coral1", "green_parts" = "coral1", "calyx" = "coral1", "fruit_mature" = "coral1", "finished_flower" = "coral1", "petals" = "coral1", "fruit_seed_immature" = "coral1", "cone" = "coral1", "bud" = "coral1", "leaves" = "#41AB5D", "bark" = "darkgrey", "sapwood" = "#BF812D","wood_from_tip" = "#BF812D", "wood_from_base" = "#BF812D", "wood_from_middle" = "#BF812D", "shed_sapwood" = "#BF812D", "senescent_leaves" = "#41AB5D")
+tissues_colors_many <- c("seed" = "red", "seed_pod" = "coral1", "flower_stigma" = "coral1", "bract" = "coral1", "green_parts" = "coral1", "calyx" = "coral1", "fruit_mature" = "coral1", "finished_flower" = "coral1", "petals" = "coral1", "fruit_seed_immature" = "coral1", "cone" = "coral1", "bud" = "coral1", "leaves" = "#41AB5D", "bark" = "skyblue1", "sapwood" = "#BF812D","wood_from_tip" = "#BF812D", "wood_from_base" = "#7F2704", "wood_from_middle" = "#BF812D", "shed_sapwood" = "#BF812D", "senescent_leaves" = "#41AB5D")
 
 tissues_colors_accessory <- c("propagule" = "red",
                               "green_parts" = "#41AB5D", "calyx" = "#A1D99B", "bract" = "#238B45", 
@@ -260,7 +260,7 @@ Figure2_all <- ggdraw(plot_grid(
 
 cowplot::save_plot("ms/nutrients/Figure2_nutrient_content.jpg", Figure2_all, base_width = 8.3, base_height = 11.7)
 
-#grid.draw(Figure2_all)
+grid.draw(Figure2_all)
 ```
 
 ### Fig 3 plot functions
@@ -1231,140 +1231,46 @@ cowplot::save_plot("ms/nutrients/FigureS3_RA_surplus.jpg", RA_surplus, base_widt
 
 ## Statistics
 
-### - general stats by tissue type, including repro
+### - General ANOVAs by live tissue types
 
 -   data frame `nutrient` has raw data
 -   column `tissue_simple` has tissue type
 
 ```{r}
 library(lme4)
+
 live_nutrient <- nutrient %>%
-  filter(tissue_simple %in% c("leaves", "bark", "wood_from_tip", "seed", "reproductive"))  %>%
-  select(species, tissue_simple, live_dead, N, P) %>%
+  dplyr::filter(tissue_simple %in% c("leaves", "bark", "wood_from_tip", "wood_from_base", "seed", "reproductive")) %>%
+  dplyr::select(species, tissue_simple, live_dead, N, P) %>%
   mutate(
     logN = log10(N),
     logP = log10(P),
     NP_ratio = N*10000/P
     )
 
-nitrogen_anova <- glm(logN ~ tissue_simple*species, data = live_nutrient)
+nitrogen_anova <- lm(logN ~ tissue_simple*species, data = live_nutrient)
 
 #nitrogen_anova <- lmer(logN ~ tissue_simple * species + (1 | species), data = live_nutrient)
 
 anova(nitrogen_anova)
-#summary(nitrogen_anova)
+summary(nitrogen_anova)
 
 estimate_contrasts(nitrogen_anova, contrast = c("tissue_simple"))
 
-phosphorus_anova <- glm(logP ~ tissue_simple*species, data = live_nutrient)
+phosphorus_anova <- lm(logP ~ tissue_simple*species, data = live_nutrient)
 
-#phosphorus_anova <- lmer(logP ~ tissue_simple * species + (1 | species), data = live_nutrient)
+phosphorus_anova <- lmer(logP ~ tissue_simple * species + (1 | species), data = live_nutrient)
 
 anova(phosphorus_anova)
 summary(phosphorus_anova)
 
 estimate_contrasts(phosphorus_anova, contrast = c("tissue_simple"))
-
-
-
-# table of means for N, P, N:P ratio
-live_nutrient %>%
-  select(species, tissue_simple, N, P, NP_ratio) %>%
-  group_by(species, tissue_simple) %>%
-    summarise_all(.funs = mean) %>%
-  ungroup() %>%
-  select(-species) %>%
-  group_by(tissue_simple) %>%
-    summarise_all(.funs = c(mean, sd, length)) %>%
-  ungroup() %>%
-  mutate(
-    N_SE = N_fn2 / sqrt(N_fn3),
-    P_SE = P_fn2 / sqrt(P_fn3),
-    NP_ratio_SE = NP_ratio_fn2 / sqrt(NP_ratio_fn3)
-    ) %>%
-  select(N = N_fn1, P = P_fn1, NP_ratio = NP_ratio_fn1, N_SE, P_SE, NP_ratio_SE)
-
-# and senesced tissues - struggle with what to do b/c of negative resorption, esp for bark
-nutrient_summary_by_spp %>%
-  filter(!is.na(N_dead)) %>%
-  select(parts_to_match, NUE, PUE) %>%
-  group_by(parts_to_match) %>%
-    summarise_all(.funs = mean) %>%
-  ungroup() %>%
-  mutate(NUE = 100*NUE, PUE = 100*PUE)
-
-
-# scaling slopes for veg, repro tissues
-nitrogen_anova <- lmer(logN ~ tissue_simple * species + (1 | species), data = live_nutrient)
-
 ```
 
-### - nutrient heartwood, sapwood
-
--   paired t-tests to test if nutrients lower in basal wood of the same individual -- relatively few samples because quite often top data from a bulked sample;
+### - Table 1, Scaling slopes within tissue types
 
 ```{r}
-woodN <- nutrient %>%
-  filter(tissue_complete %in% c("wood_from_base", "wood_from_tip")) %>%
-  select(species, age, individual = individual_rep1, N, P, tissue_complete) %>%
-  mutate(
-    logN = log10(N),
-    logP = log10(P),
-    NP_ratio = N/P
-    ) %>%
-  pivot_wider(names_from = tissue_complete, values_from = c(N, P, logN, logP, NP_ratio)) %>%
-  filter(!is.na(logN_wood_from_base), !is.na(logN_wood_from_tip)) %>%
-  select(species, individual, logN_wood_from_base, logN_wood_from_tip) %>%
-  pivot_longer(cols = 3:4) %>%
-  arrange(individual) %>%
-  mutate(stringr::str_replace(name, "logN_", "")) %>%
-  dplyr::rename(log10N = value, tissue = name)
 
-t.test(log10N ~ tissue, data = woodN, paired = TRUE)
-sapwoodN <- lme4::lmer(log10N ~ tissue + (1|individual), data = woodN, REML = TRUE)
-parameters(sapwoodN)
-
-
-woodP <- nutrient %>%
-  filter(tissue_complete %in% c("wood_from_base", "wood_from_tip")) %>%
-  select(species, individual = individual_rep1, N, P, tissue_complete) %>%
-  mutate(
-    logN = log10(N),
-    logP = log10(P),
-    NP_ratio = N/P
-    ) %>%
-  pivot_wider(names_from = tissue_complete, values_from = c(N, P, logN, logP, NP_ratio)) %>%
-  filter(!is.na(logP_wood_from_base), !is.na(logP_wood_from_tip)) %>%
-  select(species, individual, logP_wood_from_base, logP_wood_from_tip) %>%
-  pivot_longer(cols = 3:4) %>%
-  arrange(individual) %>%
-  mutate(stringr::str_replace(name, "logP_", "")) %>%
-  dplyr::rename(log10P = value, tissue = name)
-
-t.test(log10P ~ tissue, data = woodP, paired = TRUE)
-```
-
-```{r}
-test <- nutrient %>%
-select(N, P, K, species, tissue_complete) %>%
-  mutate(
-    N = log10(N),
-    P = log10(P),
-    K = log10(K)
-    ) %>%
-  filter(!is.na(N), !is.na(P), tissue_complete != "wood_from_middle") %>%
-  group_by(species, tissue_complete) %>%
-  summarise_all(.funs = mean) %>%
-  ungroup() 
-```
-
-### - Compare slopes
-
-```{r}
-veg <- nutrient2_no_senesced %>%
-  filter(tissue_complete %in% c("wood_from_tip", "bark", "leaves"))
-
-smatr::sma(P~N, data = veg, log = "XY", method = "SMA", slope.test = 0.67)
 
 bark <- nutrient2_no_senesced %>%
   filter(tissue_complete == "bark")
@@ -1376,25 +1282,71 @@ sapwood <- nutrient2_no_senesced %>%
 
 smatr::sma(P~N, data = sapwood, log = "XY", method = "SMA", slope.test = 0.67)
 
+base_wood <- nutrient2_no_senesced %>%
+  filter(tissue_complete == "wood_from_base")
+
+smatr::sma(P~N, data = base_wood, log = "XY", method = "SMA", slope.test = 0.67)
+
 leaves <- nutrient2_no_senesced %>%
   filter(tissue_complete == "leaves")
 
 smatr::sma(P~N, data = leaves, log = "XY", method = "SMA", slope.test = 0.67)
 
-
-accessory <- nutrient2_no_senesced %>%
-  filter(tissue_complete != "propagule")
+## use accessory that is weighted by species
 
 smatr::sma(P~N, data = accessory, log = "XY", method = "SMA", slope.test = 0.67)
 
-smatr::sma(P_live~N_live, data = nutrients_reproductive, log = "XY", method = "SMA", slope.test = 0.67)
+propagule <- nutrient2_no_senesced %>%
+  filter(tissue_simple == "propagule")
+
+smatr::sma(P~N, data = propagule, log = "XY", method = "SMA", slope.test = 0.67)
 
 ```
 
-### - testing if woody accessory tissues similar to sapwood, green tissues similar to leaves
+### - Table 1, Means for N, P, N:P ratio (Table 1, in part)
 
 ```{r}
-woody <- nutrient %>%
+
+live_nutrient %>%
+  dplyr::select(species, tissue_simple, N, P, NP_ratio) %>%
+  dplyr::filter(!tissue_simple == "accessory") %>% ## this is the unweighted values, for later
+  dplyr::group_by(species, tissue_simple) %>%
+    dplyr::summarise_all(
+      list(
+      mean = ~mean(., na.rm = TRUE))
+    ) %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(accessory %>% 
+                     mutate(
+                       N = N*100,
+                       P = P * 1000000,
+                       NP_ratio_mean = N*10000/P
+                       )
+                    %>% 
+                     dplyr::rename(N_mean = N, P_mean = P)) %>% # properly weighted values for each species
+  dplyr::select(-species) %>%
+  dplyr::group_by(tissue_simple) %>%  
+  dplyr::summarise_all(
+    list(
+      mean = ~mean(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      length = ~length(.)
+    )
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    N_SE = N_mean_sd / sqrt(N_mean_length),
+    P_SE = P_mean_sd / sqrt(P_mean_length ),
+    NP_ratio_SE = NP_ratio_mean_sd  / sqrt(NP_ratio_mean_length)
+    ) %>%
+  dplyr::select(tissue_simple, N = N_mean_mean , P = P_mean_mean , NP_ratio = NP_ratio_mean_mean , N_SE, P_SE, NP_ratio_SE)
+```
+
+### -Table 2, Different accessory tissues
+
+```{r}
+
+repro_woody <- nutrient %>%
   dplyr::filter(tissue_complete %in% c("wood_from_tip", "cone", "seed_pod")) %>%
   select(species, tissue_complete, live_dead, N, P) %>%
   dplyr::mutate(
@@ -1408,7 +1360,7 @@ woody_N <- lme4::lmer(log10N ~ tissue_complete + (1|species), data = woody, REML
 
 woody_P <- lme4::lmer(log10P ~ tissue_complete + (1|species), data = woody, REML = TRUE)
 
-green <- nutrient %>%
+repro_green <- nutrient %>%
   dplyr::filter(tissue_complete %in% c("leaves", "calyx", "green_parts", "bract")) %>%
   select(species, tissue_complete, live_dead, N, P) %>%
   dplyr::mutate(
@@ -1456,41 +1408,19 @@ estimate_contrasts(simpler_anova2, contrast = "tissue")
 
 ```
 
-```{r}
-```
-
-## Stats
-
-### compare slopes
+### - Table 3, senesced tissues
 
 ```{r}
-nutrient2_no_senesced_repro <- nutrient_temp2 %>%
-  filter(tissue_simple %in% c("propagule", "accessory")) %>%
-  filter(tissue_group != "senesced") %>%
-  mutate(NP = N/P)
-
-smatr::sma(N~P, data = nutrient2_no_senesced_repro, log = "XY", method = "SMA", slope.test = 1)
-# slope = 0.6380904 ; estimate = 0.67
-
-nutrient2_no_senesced_veg <- nutrient_temp2 %>%
-  filter(tissue_simple %in% c("leaves", "bark", "wood_from_tip")) %>%
-  filter(tissue_group != "senesced")
-
-smatr::sma(N ~ P, data = nutrient2_no_senesced_veg, log = "XY", method = "SMA", slope.test = 1)
-
-smatr::sma(N_live ~ P_live, data = nutrients_reproductive, log = "XY", method = "SMA", slope.test = 1)
-
-nutrients_reproductive_no_propagule <- nutrients_reproductive %>% filter(parts_to_match != "propagule")
-
-smatr::sma(N_live ~ P_live, data = nutrients_reproductive_no_propagule, log = "XY", method = "SMA", slope.test = 1)
 
 
-smatr::sma(N_live ~ P_live, data = nutrients_vegetative, log = "XY", method = "SMA", slope.test = 1)
-
-smatr::sma(N_dead ~ P_dead, data = nutrients_vegetative, log = "XY", method = "SMA", slope.test = 1)
-
-ggplot(data = nutrients_vegetative) +
-  geom_point(aes(x = P_live, y = P_dead, color = factor(parts_to_match)), pch = 21, fill = "white", size = 3) +
-  scale_y_log10(limits = c(.00001, .0005), labels = label_log(), breaks = c(.00001,  .0001, .001, .01)) +
-  scale_x_log10(limits = c(.00001, .0005), labels = label_log(), breaks = c(.00001,  .0001, .001, .01))
+# and senesced tissues - struggle with what to do b/c of negative resorption, esp for bark
+nutrient_summary_by_spp %>%
+  dplyr::filter(!is.na(N_dead)) %>%
+  dplyr::select(parts_to_match, NUE, PUE) %>%
+  dplyr::group_by(parts_to_match) %>%
+    dplyr::summarise_all(.funs = mean) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(NUE = 100*NUE, PUE = 100*PUE)
 ```
+
+### 

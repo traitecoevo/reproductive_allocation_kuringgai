@@ -1,0 +1,1434 @@
+---
+title: "Untitled"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+## Libraries
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(ellipse)
+library(ggplot2)
+library(scales)
+library(grid)
+library(gridExtra)
+library(cowplot)
+library(easystats)
+library(patchwork)
+library(emmeans)
+library(paletteer)
+library(lme4)
+```
+
+## Color, shape functions
+
+```{r}
+#02734AFF
+tissues_colors <- c("propagule" = "red", "accessory tissues" = "coral1", "leaves" = "#41AB5D", "bark" = "skyblue1", "sapwood" = "#A56A3EFF","wood_from_tip" = "#A56A3EFF", "wood_from_middle" = "#A56A3EFF", "wood_from_base" = "#693829FF", "wood from base" = "#693829FF", "shed_sapwood" = "#A56A3EFF", "senescent_leaves" = "#41AB5D")
+
+
+
+tissues_shapes <- c("propagule" = 16, "accessory tissues" = 16, "leaves" = 16, "bark" = 16, "wood_from_tip" = 16, "wood_from_middle" = 10, 
+                    "wood_from_base" = 16,"wood from base" = 16, "shed_sapwood" = 1, "senescent_leaves" = 1, "sapwood" = 16)
+
+tissues_colors_many <- c("seed" = "red", "seed_pod" = "coral1", "flower_stigma" = "coral1", "bract" = "coral1", "green_parts" = "coral1", "calyx" = "coral1", "fruit_mature" = "coral1", "finished_flower" = "coral1", "petals" = "coral1", "fruit_seed_immature" = "coral1", "cone" = "coral1", "bud" = "coral1", "leaves" = "#41AB5D", "bark" = "skyblue1", "sapwood" = "#A56A3EFF","wood_from_tip" = "#A56A3EFF", "wood_from_base" = "#693829FF", "wood_from_middle" = "#BF812D", "shed_sapwood" = "#A56A3EFF", "senescent_leaves" = "#41AB5D")
+
+
+tissues_colors_accessory <- c("propagule" = "red","leaves" = "#41AB5D", "sapwood" = "#A56A3EFF", "wood from base" = "#693829FF",
+                              "green_parts" = "#41AB5D", "calyx" = "#A1D99B", "bract" = "#238B45", 
+                              "bud" = "#F768A1", "petals" = "#DD3497", "finished_flower" = "#AE017E", "flower_stigma" = "#6A51A3", 
+                              "fruit_seed_immature" = "#FD8D3C", "fruit_seed_immature_woody" = "#D94801", "seed_pod" = "#A63603", "cone" = "#894B33FF",
+                              "woody accessory" = "#894B33FF", "green accessory" = "#70c987", "floral accessory" = "#fa98bf", "immature propagule" = "#F768A1")
+
+##7F4B89FF
+
+tissues_colors_fewer <- c("propagule" = "red","leaves" = "#41AB5D", "sapwood" = "#A56A3EFF", "wood from base" = "#693829FF",
+                              "green_parts" = "#41AB5D", "calyx" = "#A1D99B", "bract" = "#238B45", 
+                              "bud" = "#F768A1", "petals" = "#DD3497", "finished_flower" = "#AE017E", "flower_stigma" = "#6A51A3", 
+                              "fruit_seed_immature" = "#FD8D3C", "fruit_seed_immature_woody" = "#D94801", "seed_pod" = "#A63603", "cone" = "#894B33FF",
+                              "woody accessory" = "coral1", "green accessory" = "coral1", "floral accessory" = "coral1", "immature propagule" = "coral1", "accessory" = "coral1")
+
+tissues_shapes_accessory <- c("propagule" = 16, "leaves" = 16, "sapwood" = 16,"wood from base" = 16,
+                              "green_parts" = 16, "calyx" = 16, "bract" = 17, 
+                              "bud" = 16, "petals" = 16, "finished_flower" = 16, "flower_stigma" = 16, 
+                              "fruit_seed_immature" = 16, "fruit_seed_immature_woody" = 17, "seed_pod" = 17, "cone" = 17,
+                              "woody accessory" = 16, "green accessory" = 16, "floral accessory" = 16, "immature propagule" = 16)
+
+
+spp <- c("BOLE", "PILI", "GRSP", "HEPU", "COER", "EPMI", "LEES", "PHPH", "PUTU", "GRBU","HATE", "PELA", "BAER", "PEPU")
+spp_reverse <- c("PEPU", "BAER", "PELA", "HATE", "GRBU", "PUTU", "PHPH", "LEES", "EPMI", "COER", 
+                 "HEPU", "GRSP", "PILI", "BOLE")
+
+
+spp_col <- c(BAER = "#88CCEE", GRBU = "royalblue4", GRSP = "#6699CC", HATE = "#44AA99", 
+           COER = "#999933", PELA = "#117733", PEPU = "#332288", 
+           EPMI = "#AA4499",LEES = "#882255", HEPU ="#DDCC77",
+           BOLE = "#888888", PILI = "red",  PHPH = "#661100", PUTU = "#CC6677")
+```
+
+## Tables / Statistics
+
+### - Table 1, Live veg tissue ANOVA
+
+-   data frame `nutrient` has raw data
+-   column `tissue_simple` has tissue type
+```{r}
+# XX - veg tissues have replication within species, repro tissues don't
+# not 100% sure what model to use
+
+live_nutrient <- nutrient %>%
+  dplyr::filter(tissue_simple %in% c("leaves", "bark", "wood_from_tip", "wood_from_base", "seed", "reproductive")) %>%
+  dplyr::select(species, tissue_simple, live_dead, N, P) %>%
+  mutate(
+    logN = log10(N),
+    logP = log10(P),
+    NP_ratio = N*10000/P
+    )
+
+nitrogen_anova <- lm(logN ~ tissue_simple*species, data = live_nutrient)
+
+#nitrogen_anova <- lmer(logN ~ tissue_simple * species + (1 | species), data = live_nutrient)
+
+anova(nitrogen_anova)
+summary(nitrogen_anova)
+
+estimate_contrasts(nitrogen_anova, contrast = c("tissue_simple"))
+
+phosphorus_anova <- lm(logP ~ tissue_simple, data = live_nutrient)
+
+phosphorus_anova <- lmer(logP ~ tissue_simple * species + (1 | species), data = live_nutrient)
+
+anova(phosphorus_anova)
+estimate_contrasts(phosphorus_anova, contrast = c("tissue_simple"))
+
+estimate_means(phosphorus_anova)
+```
+
+### - Table 1, Live veg tissue means
+```{r}
+live_nutrient %>%
+  dplyr::select(species, tissue_simple, N, P, NP_ratio) %>%
+  dplyr::filter(!tissue_simple == "accessory") %>% ## this is the unweighted values, for later
+  dplyr::group_by(species, tissue_simple) %>%
+    dplyr::summarise_all(
+      list(
+      mean = ~mean(., na.rm = TRUE))
+    ) %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(accessory %>%
+                     dplyr::rename(N_mean = N, P_mean = P)
+                   ) %>% # properly weighted values for each species
+  dplyr::select(-species) %>%
+  dplyr::group_by(tissue_simple) %>%  
+  dplyr::summarise_all(
+    list(
+      mean = ~mean(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      length = ~length(.)
+    )
+  ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    N_SE = N_mean_sd / sqrt(N_mean_length),
+    P_SE = P_mean_sd / sqrt(P_mean_length ),
+    NP_ratio_SE = NP_ratio_mean_sd  / sqrt(NP_ratio_mean_length)
+    ) %>%
+  dplyr::select(tissue_simple, N = N_mean_mean , P = P_mean_mean , NP_ratio = NP_ratio_mean_mean , N_SE, P_SE, NP_ratio_SE)
+```
+
+### - Table 1. Live veg tissue scaling slopes
+```{r}
+bark <- nutrient2_no_senesced %>%
+  filter(tissue_complete == "bark")
+
+smatr::sma(P~N, data = bark, log = "XY", method = "SMA", slope.test = 0.67)
+
+sapwood <- nutrient2_no_senesced %>%
+  filter(tissue_complete == "wood_from_tip")
+
+smatr::sma(P~N, data = sapwood, log = "XY", method = "SMA", slope.test = 0.67)
+
+base_wood <- nutrient2_no_senesced %>%
+  filter(tissue_complete == "wood_from_base")
+
+smatr::sma(P~N, data = base_wood, log = "XY", method = "SMA", slope.test = 0.67)
+
+leaves <- nutrient2_no_senesced %>%
+  filter(tissue_complete == "leaves")
+
+smatr::sma(P~N, data = leaves, log = "XY", method = "SMA", slope.test = 0.67)
+
+accessory <- nutrient2_no_senesced %>%
+  filter(tissue_simple == "accessory")
+
+smatr::sma(P~N, data = accessory, log = "XY", method = "SMA", slope.test = 0.67)
+
+propagule <- nutrient2_no_senesced %>%
+  dplyr::filter(tissue_simple == "propagule")
+
+smatr::sma(P~N, data = propagule, log = "XY", method = "SMA", slope.test = 0.67)
+
+```
+
+### - Table 2. Accessory tissue types ANOVAs, summary stats
+```{r}
+accessory_spp_means_by_tissue <- accessory_spp_means_by_tissue %>%
+  mutate(
+    NP_ratio = N*10000/P
+    )
+
+# nitrogen
+lm_accessory_N <- lmer(log10N ~ accessory_type + (1 | species), data = accessory_spp_means_by_tissue)
+
+anova(lm_accessory_N)
+
+estimate_contrasts(lm_accessory_N, contrast = c("accessory_type"))
+
+# phosphorus
+lm_accessory_P <- lmer(log10P ~ accessory_type + (1 | species), data = accessory_spp_means_by_tissue)
+
+anova(lm_accessory_P)
+
+estimate_contrasts(lm_accessory_P, contrast = c("accessory_type"))
+
+# means, SE of raw values
+accessory_spp_means_SE <- accessory_spp_means_by_tissue %>%
+  dplyr::select(accessory_type, N, P, NP_ratio) %>%
+  dplyr::group_by(accessory_type) %>%
+    dplyr::summarise_all(
+      list(
+      mean = ~mean(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      length = ~length(.))
+    ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    N_SE = N_sd / sqrt(N_length),
+    P_SE = P_sd / sqrt(P_length),
+    NP_ratio_SE = NP_ratio_sd / sqrt(NP_ratio_length)
+  )
+
+# slopes
+immature_propagule <- accessory_spp_means_by_tissue %>%
+  filter(accessory_type == "immature propagule")
+
+smatr::sma(P~N, data = immature_propagule, log = "XY", method = "SMA")
+
+floral_accessory <- accessory_spp_means_by_tissue %>%
+  filter(accessory_type == "floral accessory")
+
+smatr::sma(P~N, data = floral_accessory, log = "XY", method = "SMA")
+
+green_accessory <- accessory_spp_means_by_tissue %>%
+  filter(accessory_type == "green accessory")
+
+smatr::sma(P~N, data = green_accessory, log = "XY", method = "SMA")
+
+woody_accessory <- accessory_spp_means_by_tissue %>%
+  filter(accessory_type == "woody accessory")
+
+smatr::sma(P~N, data = woody_accessory, log = "XY", method = "SMA")
+```
+
+### - Table 2a. Green, woody b/n veg, repro
+```{r}
+green_data <- accessory_spp_means_by_tissue %>% 
+  dplyr::filter(accessory_type == "green accessory") %>%
+  dplyr::rename(tissue_simple = accessory_type) %>%
+  dplyr::bind_rows(nutrient_spp_means_by_tissue %>% filter(tissue_simple == "leaves"))
+
+lm_green_N <- lm(log10N ~ tissue_simple + species, data = green_data)
+
+anova(lm_green_N)
+
+lm_green_P <- lm(log10P ~ tissue_simple + species, data = green_data)
+
+anova(lm_green_P)
+
+brown_data <- accessory_spp_means_by_tissue %>% 
+  dplyr::filter(accessory_type == "woody accessory") %>%
+  dplyr::rename(tissue_simple = accessory_type) %>%
+  dplyr::bind_rows(nutrient_spp_means_by_tissue %>% filter(tissue_simple == "sapwood"))
+
+lm_brown_N <- lm(log10N ~ tissue_simple+ species, data = brown_data)
+
+anova(lm_brown_N)
+
+lm_brown_P <- lm(log10P ~ tissue_simple + species, data = brown_data)
+
+anova(lm_brown_P)
+```
+
+### - Table 3. Senesced tissue
+```{r}
+# means, SE of raw values
+
+senesced_nutrient <- nutrient %>%
+  dplyr::filter(tissue_simple %in% c("senescent_leaves", "shed_bark", "shed_sapwood")) %>%
+  dplyr::select(species, tissue_simple, live_dead, N, P) %>%
+  mutate(
+    logN = log10(N),
+    logP = log10(P),
+    NP_ratio = N*10000/P
+    )
+
+senesced_nutrient_means_SE <- senesced_nutrient %>%
+  dplyr::select(tissue_simple, N, P, NP_ratio) %>%
+  dplyr::group_by(tissue_simple) %>%
+    dplyr::summarise_all(
+      list(
+      mean = ~mean(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      length = ~length(.))
+    ) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(
+    N_SE = N_sd / sqrt(N_length),
+    P_SE = P_sd / sqrt(P_length),
+    NP_ratio_SE = NP_ratio_sd / sqrt(NP_ratio_length)
+  )
+
+# XX - struggle with what to do b/c of negative resorption, esp for bark
+
+nutrient_summary_by_spp %>%
+  dplyr::filter(!is.na(N_dead)) %>%
+  dplyr::select(parts_to_match, NUE, PUE) %>%
+  dplyr::group_by(parts_to_match) %>%
+    dplyr::summarise_all(.funs = mean) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(NUE = 100*NUE, PUE = 100*PUE)
+
+# slopes
+smatr::sma(P~N, data = live_nutrient %>% filter(tissue_simple %in% c("leaves", "wood_from_tip", "bark")), log = "XY", method = "SMA")
+
+smatr::sma(P~N, data = senesced_nutrient, log = "XY", method = "SMA", slope.test = 0.69)
+
+
+data_remove_PILI_BOLE = senesced_nutrient %>% filter(!species %in% c("BOLE", "PILI"))
+
+smatr::sma(P~N, data = data_remove_PILI_BOLE, log = "XY", method = "SMA", slope.test = 0.69)
+
+senesced_leaves <- senesced_nutrient %>%
+  filter(tissue_simple == "senescent_leaves")
+
+smatr::sma(P~N, data = senesced_leaves, log = "XY", method = "SMA", slope.test = 0.94)
+
+senesced_sapwood <- senesced_nutrient %>%
+  filter(tissue_simple == "shed_sapwood")
+
+smatr::sma(P~N, data = senesced_sapwood, log = "XY", method = "SMA", slope.test = 0.74)
+
+senesced_bark <- senesced_nutrient %>%
+  filter(tissue_simple == "shed_bark")
+
+smatr::sma(P~N, data = senesced_bark, log = "XY", method = "SMA", slope.test = -0.48)
+```
+
+## Figures
+
+#### - Fig 2a. Data subset
+```{r}
+accessory_nuts <- nutrient_temp2 %>%
+  filter(tissue_simple == "accessory") %>%
+    mutate(
+      N = N * 100,
+      P = P * 1000000,
+      log10N = log10(N),
+      log10P = log10(P)
+  )
+
+nutrient_spp_means_by_tissue <- live_nutrient %>%
+  dplyr::select(species, tissue_simple, N, P) %>%
+  dplyr::filter(!tissue_simple == "reproductive") %>%
+  dplyr::mutate(
+      log10N = log10(N),
+      log10P = log10(P)
+  ) %>%
+  dplyr::group_by(species, tissue_simple) %>%
+    dplyr::summarise_all(
+      list(
+      mean = ~mean(., na.rm = TRUE),
+      sd = ~sd(., na.rm = TRUE),
+      length = ~length(.))
+    ) %>%
+  dplyr::ungroup() %>%
+  dplyr::bind_rows(accessory_nuts %>%
+                     dplyr::rename(
+                       N_mean = N, P_mean = P,
+                       log10N_mean = log10N, log10P_mean = log10P              
+                     )
+                   ) %>%
+  dplyr::mutate(
+    N_SE = N_sd / sqrt(N_length),
+    P_SE = P_sd / sqrt(P_length),
+    log10N_SE = log10N_sd / sqrt(N_length),
+    log10P_SE = log10P_sd / sqrt(P_length),
+    tissue_simple = stringr::str_replace(tissue_simple, "seed", "propagule"),
+    tissue_simple = stringr::str_replace(tissue_simple, "accessory", "accessory tissues"),
+    tissue_simple = stringr::str_replace(tissue_simple, "wood_from_tip", "sapwood"),
+    tissue_simple = stringr::str_replace(tissue_simple, "wood_from_base", "wood from base"),
+    tissue_simple = factor(tissue_simple, c("propagule", "accessory tissues", "leaves", "bark", "sapwood", "wood from base"))
+    ) %>%
+  dplyr::rename(N = N_mean, P = P_mean, log10N = log10N_mean, log10P = log10P_mean) %>%
+  dplyr::select(-tissue_complete, - tissue_group)
+```
+
+#### - Fig 2b. Data subset
+```{r}
+accessory_spp_means_by_tissue <- nutrient_summary %>%
+  dplyr::filter(!is.nan(N)) %>%
+  dplyr::filter(!parts_to_match == "") %>%
+  dplyr::filter(live_dead == "live") %>%
+  dplyr::filter(!parts_to_match %in% c("bark", "wood_from_base", "wood_from_tip", "wood_from_middle", "sapwood", "leaves")) %>%
+  mutate(
+    accessory_type = case_when(
+      parts_to_match %in% c("fruit_mature", "seed") ~ "propagule",
+      parts_to_match %in% c("fruit_seed_immature_woody", "seed_pod", "cone") ~ "woody accessory",
+      parts_to_match %in% c("calyx", "green_parts", "bract") ~ "green accessory",
+      parts_to_match %in% c("bud", "petals", "finished_flower", "flower_stigma") ~ "floral accessory",
+      parts_to_match %in% c("fruit_seed_immature") ~ "immature propagule"
+      ),
+    N = N * 100,
+    P = P * 1000000,
+    log10N = log10(N),
+    log10P = log10(P)
+  ) %>%
+  mutate(
+    accessory_type = factor(accessory_type, c("propagule", "immature propagule", "floral accessory", "green accessory", "woody accessory"))
+  )
+```
+
+#### - Fig 2a, 2b. Calculate ellipses
+```{r}
+# Multivariate normal density function
+  mv_density <- function(x, mu_leaves, sigma_leaves) {
+    k <- length(mu_leaves)
+    exp_term <- exp(-0.5 * t(x - mu_leaves) %*% solve(sigma_leaves) %*% (x - mu_leaves))
+    denom <- sqrt((2 * pi)^k * det(sigma_leaves))
+    return(exp_term / denom)
+  }
+
+# Split nutrient data frame by tissue type
+# This doesn't work for bulked accessory tissues, since they are weighted by actual investment
+  simpler_split <- nutrient %>% split(nutrient$tissue_simple)
+
+# 1. Leaves
+  # Calculate mu and sigma
+    mu_leaves <- simpler_split[["leaves"]] %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_leaves <- simpler_split[["leaves"]] %>% dplyr::select(log10N, log10P) %>% cov()
+
+  # Compute the 95% confidence ellipse
+    ellipse_data_leaves <- ellipse::ellipse(sigma_leaves, centre = mu_leaves, level = 0.95) |>
+        as_tibble()
+
+  # Calculate mv_density for each point in ellipse_data
+    ellipse_data_leaves$density <- apply(ellipse_data_leaves, 1, function(x) mv_density(x, mu_leaves, sigma_leaves))
+
+# 2. Sapwood
+    mu_sapwood <- simpler_split[["wood_from_tip"]] %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_sapwood <- simpler_split[["wood_from_tip"]] %>% dplyr::select(log10N, log10P) %>% cov() 
+    ellipse_data_sapwood <- ellipse::ellipse(sigma_sapwood, centre = mu_sapwood, level = 0.95) |>
+      as_tibble()
+    ellipse_data_sapwood$density <- apply(ellipse_data_sapwood, 1, function(x) mv_density(x, mu_sapwood, sigma_sapwood))
+
+# 3. Wood from base
+    mu_mixedwood <- simpler_split[["wood_from_base"]] %>% dplyr::select(log10N, log10P) %>% filter(!is.na(log10N)) %>% colMeans()
+    sigma_mixedwood <- simpler_split[["wood_from_base"]] %>% dplyr::select(log10N, log10P) %>% filter(!is.na(log10N)) %>% cov()  
+    ellipse_data_mixedwood <- ellipse::ellipse(sigma_mixedwood, centre = mu_mixedwood, level = 0.95) |>
+      as_tibble()
+    ellipse_data_mixedwood$density <- apply(ellipse_data_mixedwood, 1, function(x) mv_density(x, mu_sapwood, sigma_sapwood))
+
+# 4. Bark
+    mu_bark <- simpler_split[["bark"]] %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_bark <- simpler_split[["bark"]] %>% dplyr::select(log10N, log10P) %>% cov()
+    ellipse_data_bark <- ellipse::ellipse(sigma_bark, centre = mu_bark, level = 0.95) |>
+      as_tibble()
+    ellipse_data_bark$density <- apply(ellipse_data_bark, 1, function(x) mv_density(x, mu_bark, sigma_bark))
+
+# 5. Seed
+    mu_seed <- simpler_split[["seed"]] %>% 
+      dplyr::filter(species!= "EPMI") %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_seed <- simpler_split[["seed"]] %>% 
+      dplyr::filter(species!= "EPMI") %>% dplyr::select(log10N, log10P) %>% cov()
+    ellipse_data_seed <- ellipse::ellipse(sigma_seed, centre = mu_seed, level = 0.95) |>
+      as_tibble()
+    ellipse_data_seed$density <- apply(ellipse_data_seed, 1, function(x) mv_density(x, mu_seed, sigma_seed))
+
+# 6. Accessory, grouped
+    mu_accessory <- accessory_nuts %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_accessory <- accessory_nuts %>% dplyr::select(log10N, log10P) %>% cov()
+    ellipse_data_accessory <- ellipse::ellipse(sigma_accessory, centre = mu_accessory, level = 0.95) |>
+      as_tibble()
+    ellipse_data_accessory$density <- apply(ellipse_data_accessory, 1, function(x) mv_density(x, mu_accessory, sigma_accessory))
+
+# Split accessory tissue data frame by tissue type
+    repro_split <- accessory_spp_means_by_tissue %>% split(accessory_spp_means_by_tissue$accessory_type)
+
+# 7. Immature propagule
+    mu_immature_propagule <- repro_split[["immature propagule"]] %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_immature_propagule <- repro_split[["immature propagule"]] %>% dplyr::select(log10N, log10P) %>% cov()  
+    ellipse_data_immature_propagule <- ellipse::ellipse(sigma_immature_propagule, centre = mu_immature_propagule, level = 0.95) |>
+      as_tibble()
+    ellipse_data_immature_propagule$density <- apply(ellipse_data_immature_propagule, 1, function(x) mv_density(x, mu_immature_propagule, sigma_immature_propagule))
+
+# 8. Floral accessory     
+    mu_floral_accessory <- repro_split[["floral accessory"]] %>% dplyr::select(log10N, log10P) %>% filter(!is.na(log10N)) %>% colMeans()
+    sigma_floral_accessory <- repro_split[["floral accessory"]] %>% dplyr::select(log10N, log10P) %>% filter(!is.na(log10N)) %>% cov()  
+    ellipse_data_floral_accessory <- ellipse::ellipse(sigma_floral_accessory, centre = mu_floral_accessory, level = 0.95) |>
+      as_tibble()
+    ellipse_data_floral_accessory$density <- apply(ellipse_data_floral_accessory, 1, function(x) mv_density(x, mu_floral_accessory, sigma_floral_accessory))
+    
+    mu_green_accessory <- repro_split[["green accessory"]] %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_green_accessory <- repro_split[["green accessory"]] %>% dplyr::select(log10N, log10P) %>% cov()
+    ellipse_data_green_accessory <- ellipse::ellipse(sigma_green_accessory, centre = mu_green_accessory, level = 0.95) |>
+      as_tibble()
+    ellipse_data_green_accessory$density <- apply(ellipse_data_green_accessory, 1, function(x) mv_density(x, mu_green_accessory, sigma_green_accessory))
+    
+    mu_woody_accessory <- repro_split[["woody accessory"]] %>% dplyr::select(log10N, log10P) %>% colMeans()
+    sigma_woody_accessory <- repro_split[["woody accessory"]] %>% dplyr::select(log10N, log10P) %>% cov()
+    ellipse_data_woody_accessory <- ellipse::ellipse(sigma_woody_accessory, centre = mu_woody_accessory, level = 0.95) |>
+      as_tibble()
+    ellipse_data_woody_accessory$density <- apply(ellipse_data_woody_accessory, 1, function(x) mv_density(x, mu_woody_accessory, sigma_woody_accessory))
+```
+
+#### - Fig 2a, Veg tissues
+```{r}
+# Plot the 95% confidence ellipse with filled area
+Figure_2a_tmp <- ggplot(data = nutrient_spp_means_by_tissue, aes(x = log10N, y = log10P)) +
+  geom_abline(slope = 1, intercept = 1.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 2.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 3.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 4.09, colour = "grey70") +
+  geom_polygon(data = ellipse_data_mixedwood, fill = "#693829FF", alpha = 0.1) +
+  geom_polygon(data = ellipse_data_sapwood, fill = "#BF812D", alpha = 0.15) +
+  geom_polygon(data = ellipse_data_seed, fill = "red", alpha = 0.1) + 
+  geom_polygon(data = ellipse_data_accessory, fill = "coral1", alpha = 0.2) +
+  geom_polygon(data = ellipse_data_leaves, fill = "#41AB5D", alpha = 0.2) +
+  geom_polygon(data = ellipse_data_bark, fill = "skyblue1", alpha = 0.25) +
+  geom_crossbar(data = nutrient_spp_means_by_tissue, aes(xmin = log10N, ymin = log10P - log10P_SE, ymax = log10P + log10P_SE), colour = "grey50", linewidth = 0.05) +
+  geom_crossbar(data = nutrient_spp_means_by_tissue, aes(xmin = log10N - log10N_SE, xmax = log10N + log10N_SE, y = log10P), colour = "grey50", linewidth = .05) +
+  geom_point(data = nutrient_spp_means_by_tissue, aes(log10N, log10P, color = factor(tissue_simple), shape = factor(tissue_simple)), size = 2) +
+  scale_colour_manual(values = tissues_colors, name = "tissue type") +
+  scale_shape_manual(values = tissues_shapes, name = "tissue type") +
+  labs(
+    x = "tissue N content (mg N/mg dry mass)",
+    y = "tissue P content (ppm P)"
+  ) +
+  theme_classic() +
+  guides(x.sec = "axis", y.sec = "axis") +
+  scale_x_continuous(limits = c(-1.9,1.5), labels = c(expression(10^-1), expression(10^0), expression(10^1)), breaks = c(-1,0,1)) +
+  scale_y_continuous(limits = c(0.8, 4.8), labels = c(expression(10^1), expression(10^2), expression(10^3), expression(10^4)), breaks = c(1, 2, 3, 4)) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.line = element_line(linewidth = 0.5, colour = "black"),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    legend.text = element_text(size = 7),
+    #legend.key.spacing.y = unit(5, "pt"),
+    legend.justification = "top",
+    plot.margin = unit(c(0.1, 0, 0.1, .1), "inches")
+    ) + 
+  guides(colour = guide_legend(override.aes = list(size = 3))) 
+
+Figure_2a <- Figure_2a_tmp + theme(legend.position = "none")
+  
+legend_2a <- get_legend(Figure_2a_tmp)
+```
+
+#### - Fig 2b, Repro tissues
+```{r}
+# Plot the 95% confidence ellipse with filled area
+Figure_2b_tmp <- ggplot(data = accessory_spp_means_by_tissue , aes(x = log10N, y = log10P)) +
+  geom_abline(slope = 1, intercept = 1.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 2.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 3.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 4.09, colour = "grey70") +
+  geom_polygon(data = ellipse_data_seed, fill = "red", alpha = 0.1) + 
+  geom_polygon(data = ellipse_data_immature_propagule, fill = "#7F4B89FF", alpha = 0.1) + 
+  geom_polygon(data = ellipse_data_floral_accessory, fill = "#F768A1", alpha = 0.2) + 
+  geom_polygon(data = ellipse_data_green_accessory, fill = "#67BD02FF", alpha = 0.2) + 
+  geom_polygon(data = ellipse_data_woody_accessory, fill = "#894B33FF", alpha = 0.1) + 
+  #geom_polygon(data = ellipse_data_sapwood, fill = "#BF812D", alpha = 0.1) +
+  #geom_polygon(data = ellipse_data_accessory, fill = "coral1", alpha = 0.1) +
+  #geom_polygon(data = ellipse_data_leaves, fill = "#41AB5D", alpha = 0.1) +
+  geom_point(data = accessory_spp_means_by_tissue, aes(log10N, log10P, color = accessory_type, shape = accessory_type), size = 2) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_shape_manual(values = tissues_shapes_accessory, name = "accessory category") +
+  labs(
+    x = "tissue N content (mg N/mg dry mass)",
+    y = "tissue P content (ppm P)"
+  ) +
+  theme_classic() +
+  guides(x.sec = "axis", y.sec = "axis") +
+  scale_x_continuous(limits = c(-1.9,1.5), labels = c(expression(10^-1), expression(10^0), expression(10^1)), breaks = c(-1,0,1)) +
+  scale_y_continuous(limits = c(0.8, 4.8), labels = c(expression(10^1), expression(10^2), expression(10^3), expression(10^4)), breaks = c(1, 2, 3, 4)) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.line = element_line(linewidth = 0.5, colour = "black"),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    legend.text = element_text(size = 7),
+    #legend.key.spacing.y = unit(5, "pt"),
+    legend.justification = "top",
+    plot.margin = unit(c(0.1, 0, 0.1, .1), "inches")
+    ) + 
+  guides(colour = guide_legend(override.aes = list(size = 3))) 
+
+Figure_2b <- Figure_2b_tmp + theme(legend.position = "none")
+  
+legend_2b <- get_legend(Figure_2b_tmp)
+```
+
+#### - Fig 2c, Green tissues
+```{r}
+# Plot the 95% confidence ellipse with filled area
+Figure_2c <- ggplot(data = accessory_spp_means_by_tissue , aes(x = log10N, y = log10P)) +
+  geom_polygon(data = ellipse_data_green_accessory, fill = "#67BD02FF", alpha = 0.2) + 
+  geom_polygon(data = ellipse_data_leaves, fill = "#41AB5D", alpha = 0.2) +
+  geom_point(data = accessory_spp_means_by_tissue %>% filter(accessory_type == "green accessory"), aes(log10N, log10P, color = accessory_type, shape = accessory_type), size = 2) +
+  geom_point(data = nutrient_spp_means_by_tissue %>% filter(tissue_simple == "leaves"), aes(log10N, log10P, color = tissue_simple, shape = tissue_simple), size = 2) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_shape_manual(values = tissues_shapes_accessory, name = "accessory category") +
+  labs(
+    x = "tissue N content (mg N/mg dry mass)",
+    y = "tissue P content (ppm P)"
+  ) +
+  theme_classic() +
+  guides(x.sec = "axis", y.sec = "axis") +
+  scale_x_continuous(limits = c(-1, 1), labels = c(expression(10^-1), expression(10^0), expression(10^1)), breaks = c(-1,0,1)) +
+  scale_y_continuous(limits = c(1.5, 3.3), labels = c(expression(10^1), expression(10^2), expression(10^3)), breaks = c(1, 2, 3)) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.line = element_line(linewidth = 0.5, colour = "black"),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    legend.text = element_text(size = 7),
+    #legend.key.spacing.y = unit(5, "pt"),
+    legend.justification = "top",
+    plot.margin = unit(c(0.1, 0, 0.1, .1), "inches")
+    ) + 
+  guides(colour = guide_legend(override.aes = list(size = 3)))+ 
+  theme(legend.position = "none")
+```
+
+#### - Fig 2d, Woody tissues
+```{r}
+# Plot the 95% confidence ellipse with filled area
+Figure_2d <- ggplot(data = accessory_spp_means_by_tissue , aes(x = log10N, y = log10P)) +
+  geom_polygon(data = ellipse_data_woody_accessory, fill = "#894B33FF", alpha = 0.2) + 
+  geom_polygon(data = ellipse_data_sapwood, fill = "#BF812D", alpha = 0.2) +
+  geom_polygon(data = ellipse_data_mixedwood, fill = "#693829FF", alpha = 0.1) +
+  geom_point(data = accessory_spp_means_by_tissue %>% filter(accessory_type == "woody accessory"), aes(log10N, log10P, color = accessory_type, shape = accessory_type), size = 2) +
+  geom_point(data = nutrient_spp_means_by_tissue %>% filter(tissue_simple == "sapwood"), aes(log10N, log10P, color = tissue_simple, shape = tissue_simple), size = 2) +
+  geom_point(data = nutrient_spp_means_by_tissue %>% filter(tissue_simple == "wood from base"), aes(log10N, log10P, color = tissue_simple, shape = tissue_simple), size = 2) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_shape_manual(values = tissues_shapes_accessory, name = "accessory category") +
+  labs(
+    x = "tissue N content (mg N/mg dry mass)",
+    y = "tissue P content (ppm P)"
+  ) +
+  theme_classic() +
+  guides(x.sec = "axis", y.sec = "axis") +
+  scale_x_continuous(limits = c(-2.5, 1), labels = c(expression(10^-2), expression(10^-1), expression(10^0), expression(10^1)), breaks = c(-2,-1,0,1)) +
+  scale_y_continuous(limits = c(0.7, 3.3), labels = c(expression(10^1), expression(10^2), expression(10^3)), breaks = c(1, 2, 3)) +
+  theme(
+    axis.text = element_text(size = 12),
+    axis.line = element_line(linewidth = 0.5, colour = "black"),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    legend.text = element_text(size = 7),
+    #legend.key.spacing.y = unit(5, "pt"),
+    legend.justification = "top",
+    plot.margin = unit(c(0.1, 0, 0.1, .1), "inches")
+    ) + 
+  guides(colour = guide_legend(override.aes = list(size = 3)))+ 
+  theme(legend.position = "none")
+```
+
+#### - Fig 2 combined
+```{r}
+Figure2ab <- ggdraw(plot_grid(plot_grid(Figure_2a, Figure_2b, ncol=1, align='v', rel_heights = c(1,1)),
+                              plot_grid(legend_2a, legend_2b, ncol=1, align='v', rel_heights = c(1,1)),
+                               rel_widths=c(1, 0.3)))
+
+Figure2cd <- ggdraw(plot_grid(plot_grid(Figure_2c, Figure_2d, ncol=2, align='v', rel_widths = c(1,1))))
+
+Figure2 <- ggdraw(plot_grid(plot_grid(Figure2ab, Figure2cd, ncol=1, align='v', rel_heights = c(2,0.6))))
+  
+  
+cowplot::save_plot("ms/nutrients/Figure2_nutrient_content_v3.jpg", Figure2, base_width = 8.3, base_height = 11.7)
+
+```
+
+#### - Fig 3. Senesced tissue
+```{r}
+nutrient_each_part <- nutrient_summary %>%
+  filter(!is.nan(N)) %>%
+  filter(!parts_to_match == "") %>%
+  mutate(live_dead = ifelse(live_dead == "mixed", "live", live_dead)) %>%
+  pivot_wider(names_from = live_dead, values_from = c(N, P, K))  %>%
+  mutate(tissue_category = ifelse(parts_to_match %in% c("bark", "wood_from_base", "wood_from_tip", "wood_from_middle", "sapwood", "leaves"), "vegetative", "reproductive")) 
+
+nutrients_vegetative <- 
+  nutrient_each_part %>% 
+  filter(tissue_category == "vegetative") %>%
+  filter(!parts_to_match %in% c("wood_from_middle", "wood_from_base")) %>%
+  mutate(parts_to_match = factor(parts_to_match, levels = c("leaves", "sapwood", "wood_from_tip", "wood_from_middle", "wood_from_base", "bark"))) %>%
+  arrange(parts_to_match) %>%
+  mutate(
+    N_live = 100*N_live,
+    P_live = 1000000*P_live,
+    N_dead = 100*N_dead,
+    P_dead = 1000000*P_dead,
+    N_live_log10 = log10(N_live),
+    P_live_log10 = log10(P_live),
+    N_dead_log10 = log10(N_dead),
+    P_dead_log10 = log10(P_dead)
+  )
+
+Figure_3_tmp <- 
+  ggplot(data = nutrients_vegetative) +
+  geom_point(aes(x = N_dead_log10, y = P_dead_log10, color = factor(parts_to_match)), pch = 21, fill = "white", size = 3) +
+  geom_point(aes(x = N_live_log10, y = P_live_log10, color = factor(parts_to_match), shape = factor(parts_to_match)), size = 3) +
+  scale_colour_manual(values = tissues_colors, name = "vegetative tissue") +
+  scale_shape_manual(values = tissues_shapes, name = "vegetative tissue") +
+  geom_segment(aes(x = N_live_log10, xend = N_dead_log10, y = P_live_log10, yend = P_dead_log10, color = factor(parts_to_match)), linewidth = .2) +
+  #geom_abline(slope = 1, intercept = 2.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 1.09, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 3.09, colour = "grey70") +
+  geom_abline(slope = 1.0723002, intercept = 1.884408) +
+  geom_abline(slope = 0.6928963, intercept = 2.268353) +
+  #geom_smooth(aes(x=N_live_log10, y=P_live_log10), colour = "black", method="lm", se = F, linewidth = 0.4) +
+  #geom_smooth(aes(x=N_dead_log10, y=P_dead_log10), colour = "grey30", method="lm", se = F, linewidth = 0.4) + 
+  #scale_x_continuous(limits = c(-1.9,1.5), labels = c(expression(10^-1), expression(10^0), expression(10^1)), breaks = c(-1,0,1)) +
+  #scale_y_continuous(limits = c(-1, 1.1), labels = c(expression(10^-1), expression(10^0), expression(10^1)), breaks = c(-1, 0, 1)) +
+  geom_text(data = nutrients_vegetative, aes(x = N_dead_log10, y = P_dead_log10, label = species), size = 1.8, hjust=1.3, vjust= 1) +
+  guides(
+    x.sec = "axis",
+    y.sec = "axis",
+    color = guide_legend(byrow = TRUE),
+    ) +
+  labs(
+    x = "tissue N content (mg N/mg dry mass)",
+    y = "tissue P content (ppm P)"
+    ) +
+  theme_classic()+
+  theme(
+    axis.text = element_text(size = 12),
+    axis.line = element_line(linewidth = 0.5, colour = "black"),
+    axis.text.y.right = element_blank(),
+    axis.text.x.top = element_blank(),
+    axis.ticks.y.right = element_blank(),
+    axis.ticks.x.top = element_blank(),
+    legend.box.background = element_rect(fill = "white", colour = "white"),
+    legend.box.margin = margin(0, 0, 0, 12),
+    legend.text = element_text(size = 7),
+    legend.justification = "top",
+    plot.margin = unit(c(0.1, 0, 0.1, .1), "inches")
+    ) + 
+  guides(
+    color = guide_legend(override.aes = list(linetype = 0, size = 3)),
+    fill = guide_legend(override.aes = list(linetype = 0))
+  )
+
+Figure_3 <- Figure_3_tmp + theme(legend.position = "none")
+  
+#cowplot::save_plot("ms/nutrients/Figure3.jpg", Figure_3, base_width = 6.5, base_height = 4)
+
+legend_3 <- get_legend(Figure_3_tmp)
+
+#Figure2_all <-arrangeGrob(Figure_2a, legend_2a, Figure_2b, legend_2b, Figure_2c, legend_2c, nrow = 3, ncol = 2, heights = c(1, 1, 1), widths = c(1, .25))
+
+#Figure2_all <- ggdraw(plot_grid(
+ #                                 plot_grid(Figure_2a, Figure_2b, Figure_2c, ncol=1, align='v', rel_heights = c(1,1,1)),
+  #                                plot_grid(legend_2a, legend_2b, legend_2c, ncol=1, align='v', rel_heights = c(1,1,1)),
+   #                               rel_widths=c(1, 0.3)))
+
+cowplot::save_plot("ms/nutrients/Figure3_resorption.jpg", Figure_3_tmp, base_width = 8.3, base_height = 4)
+
+grid.draw(Figure_3_tmp)
+```
+
+
+### Fig 4 plot functions
+
+```{r}
+N_plot <- function(data, colour_scheme) {
+  ggplot(data = data, aes(x = species, y = N_inv)) +
+  geom_col(aes(fill = tissue)) +
+  scale_fill_manual(values = colour_scheme, name = "tissue type") +
+  scale_y_continuous(limits = c(0,1.01), expand = c(0,0), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  theme_classic() +
+  theme(
+    axis.text.y = element_text(size = 7),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position="none"
+    )
+}
+
+P_plot <- function(data, colour_scheme) {
+  ggplot(data = data, aes(x = species, y = P_inv)) +
+  geom_col(aes(fill = tissue)) +
+  scale_fill_manual(values = colour_scheme, name = "tissue type") +
+  scale_y_continuous(limits = c(0,1.01), expand = c(0,0), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 7),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position = "none"
+    )
+}
+
+dry_mass_plot <- function(data, ylab, colour_scheme) {
+  ggplot(data = data, aes(x = species, y = dry_mass_inv)) +
+  geom_col(aes(fill = tissue)) +
+  scale_fill_manual(values = colour_scheme, name = "tissue type") +
+  ylab(ylab) +
+  scale_y_continuous(limits = c(0,1.01), expand = c(0,0), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(size = 9),
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 7),
+    axis.title.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position="none"
+    )
+}
+
+
+P_plot_tmp <- function(data, colour_scheme) {
+  ggplot(data = data, aes(x = species, y = P_inv)) +
+  geom_col(aes(fill = tissue)) +
+  scale_fill_manual(values = colour_scheme, name = "tissue type") +
+  scale_y_continuous(limits = c(0,1.01), expand = c(0,0), breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1)) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_text(size = 7),
+    axis.title = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10)
+    )
+}
+```
+
+### Fig 4 data summary functions - original
+
+```{r}
+vegetative_nutrient_invest <- function(SummaryInd, leaf_var, stem_var, resorb = FALSE) {
+  
+  vegetative_investment <- 
+    SummaryInd %>%
+      dplyr::select(species, age, leaf_var, stem_var) %>%
+      dplyr::left_join(vegetative_nutrients)
+  
+  if (resorb == FALSE) {
+    vegetative_investment <- vegetative_investment %>%
+      dplyr::mutate(
+        leaf_N = SummaryInd[[leaf_var]]*N_live_leaves,
+        leaf_P = SummaryInd[[leaf_var]]*P_live_leaves,
+        stem_N = SummaryInd[[stem_var]]*N_live_sapwood,
+        stem_P = SummaryInd[[stem_var]]*P_live_sapwood
+      )
+  } else {
+    vegetative_investment <- vegetative_investment %>%
+        dplyr::mutate(
+          leaf_N = SummaryInd[[leaf_var]]*N_post_resorb_leaves,
+          leaf_P = SummaryInd[[leaf_var]]*P_post_resorb_leaves,
+          stem_N = SummaryInd[[stem_var]]*N_post_resorb_sapwood,
+          stem_P = SummaryInd[[stem_var]]*P_post_resorb_sapwood
+        )
+  }
+  
+  vegetative_investment <- vegetative_investment %>%
+      dplyr::group_by(species, age) %>%
+      dplyr::summarise(
+        across(c(leaf_var, stem_var, leaf_N, leaf_P, stem_N, stem_P), ~sum(.x, na.rm = TRUE))
+      ) %>%
+      dplyr::ungroup() %>%
+    tidyr::pivot_longer(cols = 3:8) %>%
+    dplyr::mutate(
+      tissue = case_when(
+        stringr::str_starts(name, "leaf") ~ "leaves",
+        stringr::str_starts(name, "stem") ~ "sapwood",
+      ),
+      nutrient = case_when(
+        stringr::str_detect(name, "_N") ~ "N_inv",
+        stringr::str_detect(name, "_P") ~ "P_inv",
+        .default = "dry_mass_inv",
+      )
+    ) %>%
+    dplyr::select(-name) %>%
+    tidyr::pivot_wider(names_from = nutrient, values_from = value)
+  
+  vegetative_investment
+}
+
+vegetative_nutrient_invest_ind <- function(SummaryInd, leaf_var, stem_var, resorb = FALSE) {
+  
+  vegetative_investment <- 
+    SummaryInd %>%
+      dplyr::select(species, age, individual, leaf_var, stem_var) %>%
+      dplyr::left_join(vegetative_nutrients)
+  
+  if (resorb == FALSE) {
+    vegetative_investment <- vegetative_investment %>%
+      dplyr::mutate(
+        leaf_N = SummaryInd[[leaf_var]]*N_live_leaves,
+        leaf_P = SummaryInd[[leaf_var]]*P_live_leaves,
+        stem_N = SummaryInd[[stem_var]]*N_live_sapwood,
+        stem_P = SummaryInd[[stem_var]]*P_live_sapwood
+      )
+  } else {
+    vegetative_investment <- vegetative_investment %>%
+        dplyr::mutate(
+          leaf_N = SummaryInd[[leaf_var]]*N_post_resorb_leaves,
+          leaf_P = SummaryInd[[leaf_var]]*P_post_resorb_leaves,
+          stem_N = SummaryInd[[stem_var]]*N_post_resorb_sapwood,
+          stem_P = SummaryInd[[stem_var]]*P_post_resorb_sapwood
+        )
+  }
+  
+  vegetative_investment <- vegetative_investment %>%
+      dplyr::group_by(species, age, individual) %>%
+      dplyr::summarise(
+        across(c(leaf_var, stem_var, leaf_N, leaf_P, stem_N, stem_P), ~sum(.x, na.rm = TRUE))
+      ) %>%
+      dplyr::ungroup() %>%
+    tidyr::pivot_longer(cols = 4:9) %>%
+    dplyr::mutate(
+      tissue = case_when(
+        stringr::str_starts(name, "leaf") ~ "leaves",
+        stringr::str_starts(name, "stem") ~ "sapwood",
+      ),
+      nutrient = case_when(
+        stringr::str_detect(name, "_N") ~ "N_inv",
+        stringr::str_detect(name, "_P") ~ "P_inv",
+        .default = "dry_mass_inv",
+      )
+    ) %>%
+    dplyr::select(-name) %>%
+    tidyr::pivot_wider(names_from = nutrient, values_from = value)
+  
+  vegetative_investment
+}
+
+calculate_proportions <- function(dataframe) {
+  
+  dataframe <- dataframe %>%
+  dplyr::group_by(species, tissue) %>%
+  dplyr::summarise(across(c(dry_mass_inv, N_inv, P_inv), ~sum(.x, na.rm = TRUE))) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(species) %>%
+  dplyr::mutate(
+    across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x))
+  ) %>%
+  dplyr::mutate(tissue = factor(tissue, c("propagule", "accessory", "leaves", "sapwood")))
+  
+  dataframe
+}
+
+calculate_proportions_spp_age <- function(dataframe) {
+  
+  dataframe <- dataframe  %>%
+  tidyr::pivot_wider(names_from = tissue, values_from = c(dry_mass_inv, N_inv, P_inv)) %>%
+  dplyr::mutate(
+    all_dry_mass_inv = dry_mass_inv_propagule + dry_mass_inv_accessory + dry_mass_inv_leaves + dry_mass_inv_sapwood,
+    all_N_inv = N_inv_propagule + N_inv_accessory + N_inv_leaves + N_inv_sapwood,
+    all_P_inv = P_inv_propagule + P_inv_accessory + P_inv_leaves + P_inv_sapwood,
+    across(c(dry_mass_inv_propagule, dry_mass_inv_accessory, dry_mass_inv_leaves, dry_mass_inv_sapwood), ~ .x/all_dry_mass_inv),
+    across(c(N_inv_propagule, N_inv_accessory, N_inv_leaves, N_inv_sapwood), ~ .x/all_N_inv),
+    across(c(P_inv_propagule, P_inv_accessory, P_inv_leaves, P_inv_sapwood), ~ .x/all_P_inv)
+  ) %>%
+  select(-all_dry_mass_inv, -all_N_inv, -all_P_inv) 
+  
+  dataframe
+}
+```
+
+### Fig 4 data summary functions - NEW
+
+```{r}
+vegetative_nutrient_invest <- function(SummaryInd, leaf_var, stem_var, resorb = FALSE) {
+  
+  vegetative_investment <- 
+    SummaryInd %>%
+      dplyr::select(species, age, leaf_var, stem_var) %>%
+      dplyr::left_join(vegetative_nutrients)
+  
+  if (resorb == FALSE) {
+    vegetative_investment <- vegetative_investment %>%
+      dplyr::mutate(
+        leaf_N = vegetative_investment[[leaf_var]]*N_live_leaves,
+        leaf_P = vegetative_investment[[leaf_var]]*P_live_leaves,
+        stem_N = vegetative_investment[[stem_var]]*N_live_sapwood,
+        stem_P = vegetative_investment[[stem_var]]*P_live_sapwood
+      )
+  } else {
+    vegetative_investment <- vegetative_investment %>%
+        dplyr::mutate(
+          leaf_N = vegetative_investment[[leaf_var]]*N_post_resorb_leaves,
+          leaf_P = vegetative_investment[[leaf_var]]*P_post_resorb_leaves,
+          stem_N = vegetative_investment[[stem_var]]*N_post_resorb_sapwood,
+          stem_P = vegetative_investment[[stem_var]]*P_post_resorb_sapwood
+        )
+  }
+  
+  vegetative_investment <- vegetative_investment %>%
+      dplyr::group_by(species, age) %>%
+      dplyr::summarise(
+        across(c(leaf_var, stem_var, leaf_N, leaf_P, stem_N, stem_P), ~sum(.x, na.rm = TRUE))
+      ) %>%
+      dplyr::ungroup() %>%
+    tidyr::pivot_longer(cols = 3:8) %>%
+    dplyr::mutate(
+      tissue = case_when(
+        stringr::str_starts(name, "leaf") ~ "leaves",
+        stringr::str_starts(name, "stem") ~ "sapwood",
+      ),
+      nutrient = case_when(
+        stringr::str_detect(name, "_N") ~ "N_inv",
+        stringr::str_detect(name, "_P") ~ "P_inv",
+        .default = "dry_mass_inv",
+      )
+    ) %>%
+    dplyr::select(-name) %>%
+    tidyr::pivot_wider(names_from = nutrient, values_from = value)
+  
+  vegetative_investment
+}
+
+vegetative_nutrient_invest_ind <- function(SummaryInd, leaf_var, stem_var, resorb = FALSE) {
+  
+  vegetative_investment <- 
+    SummaryInd %>%
+      dplyr::select(species, age, individual, leaf_var, stem_var) %>%
+      dplyr::left_join(vegetative_nutrients)
+  
+  if (resorb == FALSE) {
+    vegetative_investment <- vegetative_investment %>%
+      dplyr::mutate(
+        leaf_N = SummaryInd[[leaf_var]]*N_live_leaves,
+        leaf_P = SummaryInd[[leaf_var]]*P_live_leaves,
+        stem_N = SummaryInd[[stem_var]]*N_live_sapwood,
+        stem_P = SummaryInd[[stem_var]]*P_live_sapwood
+      )
+  } else {
+    vegetative_investment <- vegetative_investment %>%
+        dplyr::mutate(
+          leaf_N = SummaryInd[[leaf_var]]*N_post_resorb_leaves,
+          leaf_P = SummaryInd[[leaf_var]]*P_post_resorb_leaves,
+          stem_N = SummaryInd[[stem_var]]*N_post_resorb_sapwood,
+          stem_P = SummaryInd[[stem_var]]*P_post_resorb_sapwood
+        )
+  }
+  
+  vegetative_investment <- vegetative_investment %>%
+      dplyr::group_by(species, age, individual) %>%
+      dplyr::summarise(
+        across(c(leaf_var, stem_var, leaf_N, leaf_P, stem_N, stem_P), ~sum(.x, na.rm = TRUE))
+      ) %>%
+      dplyr::ungroup() %>%
+    tidyr::pivot_longer(cols = 4:9) %>%
+    dplyr::mutate(
+      tissue = case_when(
+        stringr::str_starts(name, "leaf") ~ "leaves",
+        stringr::str_starts(name, "stem") ~ "sapwood",
+      ),
+      nutrient = case_when(
+        stringr::str_detect(name, "_N") ~ "N_inv",
+        stringr::str_detect(name, "_P") ~ "P_inv",
+        .default = "dry_mass_inv",
+      )
+    ) %>%
+    dplyr::select(-name) %>%
+    tidyr::pivot_wider(names_from = nutrient, values_from = value)
+  
+  vegetative_investment
+}
+
+calculate_proportions_simple <- function(dataframe) {
+  
+  dataframe <- dataframe %>%
+  dplyr::group_by(species, tissue) %>%
+  dplyr::summarise(across(c(dry_mass_inv, N_inv, P_inv), ~sum(.x, na.rm = TRUE))) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(species) %>%
+  dplyr::mutate(
+    across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x))
+  ) %>%
+  dplyr::mutate(tissue = factor(tissue, c("propagule", "accessory", "leaves", "sapwood")))
+  
+  dataframe
+}
+
+calculate_proportions <- function(dataframe) {
+  
+  dataframe <- dataframe %>%
+  dplyr::group_by(species, tissue) %>%
+  dplyr::summarise(across(c(dry_mass_inv, N_inv, P_inv), ~sum(.x, na.rm = TRUE))) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(species) %>%
+  dplyr::mutate(
+    across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x))
+  ) %>%
+  dplyr::mutate(tissue = factor(tissue, c("propagule", "immature propagule", "floral accessory", "green accessory", "woody accessory", "leaves", "sapwood")))
+  
+  dataframe
+}
+
+calculate_proportions_spp_age <- function(dataframe) {
+  
+  dataframe <- dataframe  %>%
+  tidyr::pivot_wider(names_from = tissue, values_from = c(dry_mass_inv, N_inv, P_inv)) %>%
+  dplyr::mutate(
+    all_dry_mass_inv = dry_mass_inv_propagule + dry_mass_inv_accessory + dry_mass_inv_leaves + dry_mass_inv_sapwood,
+    all_N_inv = N_inv_propagule + N_inv_accessory + N_inv_leaves + N_inv_sapwood,
+    all_P_inv = P_inv_propagule + P_inv_accessory + P_inv_leaves + P_inv_sapwood,
+    across(c(dry_mass_inv_propagule, dry_mass_inv_accessory, dry_mass_inv_leaves, dry_mass_inv_sapwood), ~ .x/all_dry_mass_inv),
+    across(c(N_inv_propagule, N_inv_accessory, N_inv_leaves, N_inv_sapwood), ~ .x/all_N_inv),
+    across(c(P_inv_propagule, P_inv_accessory, P_inv_leaves, P_inv_sapwood), ~ .x/all_P_inv)
+  ) %>%
+  select(-all_dry_mass_inv, -all_N_inv, -all_P_inv) 
+  
+  dataframe
+}
+```
+
+### Fig 4 repro invesment
+
+```{r}
+repro_investment_simple <- repro_NP_investment %>%
+  dplyr::mutate(tissue = ifelse(accessory_simple == "propagule", "propagule", "accessory")) %>%
+  dplyr::left_join(SummaryInd %>% dplyr::select(individual, age)) %>%
+  dplyr::select(species, age, tissue, N_mass_repro_tissues, P_mass_repro_tissues, dry_mass_inv_to_use) %>% 
+  dplyr::group_by(species, age, tissue) %>%
+    dplyr::summarise(across(c(N_mass_repro_tissues, P_mass_repro_tissues, dry_mass_inv_to_use), ~sum(.x, na.rm = TRUE))) %>%
+  dplyr::ungroup() %>%
+  dplyr::rename(N_inv = N_mass_repro_tissues, P_inv = P_mass_repro_tissues, dry_mass_inv = dry_mass_inv_to_use)
+
+
+repro_investment <- repro_NP_investment %>%
+  dplyr::mutate(tissue = case_when(
+    parts_to_match %in% c("fruit_mature", "seed") ~ "propagule",
+    parts_to_match %in% c("fruit_seed_immature") ~ "immature propagule",
+    parts_to_match %in% c("finished_flower", "flower_stigma", "bud", "petals") ~ "floral accessory",
+    parts_to_match %in% c("calyx", "bract", "green_parts") ~ "green accessory",
+    parts_to_match %in% c("cone", "seed_pod") ~ "woody accessory",
+    )) %>%
+  dplyr::left_join(SummaryInd %>% dplyr::select(individual, age)) %>%
+  dplyr::select(species, age, tissue, N_mass_repro_tissues, P_mass_repro_tissues, dry_mass_inv_to_use) %>% 
+  dplyr::group_by(species, age, tissue) %>%
+    dplyr::summarise(across(c(N_mass_repro_tissues, P_mass_repro_tissues, dry_mass_inv_to_use), ~sum(.x, na.rm = TRUE))) %>%
+  dplyr::ungroup() %>%
+  dplyr::rename(N_inv = N_mass_repro_tissues, P_inv = P_mass_repro_tissues, dry_mass_inv = dry_mass_inv_to_use)
+```
+
+### Fig 4 vegetative investment
+
+```{r}
+vegetative_nutrients <- nutrient_temp2 %>%
+  dplyr::filter(tissue_simple %in% c("leaves", "wood_from_tip", "senescent_leaves", "shed_sapwood")) %>%
+  dplyr::mutate(tissue_simple =
+    case_when(
+      tissue_simple %in% c("leaves", "senescent_leaves") ~ "leaves",
+      tissue_simple %in% c("wood_from_tip", "shed_sapwood") ~ "sapwood"
+    )
+  ) %>%
+  dplyr::select(species, tissue_simple, tissue_group, N, P) %>%
+  tidyr::pivot_wider(names_from = tissue_group, values_from = c(N, P)) %>%
+  dplyr::mutate(
+    N_post_resorb = ifelse(N_live > N_senesced, N_senesced, N_live),
+    P_post_resorb = ifelse(P_live > P_senesced, P_senesced, N_live)
+    ) %>%
+  dplyr::select(species, tissue_simple, N_live, P_live, N_post_resorb, P_post_resorb) %>%
+  tidyr::pivot_wider(names_from = tissue_simple, values_from = c(N_live, P_live, N_post_resorb, P_post_resorb))
+```
+
+### Figure 4a. Snapshot harvest, including current year's entire reproductive investment
+
+```{r}
+
+# assuming all wood growth in a year is sapwood; ignoring bark for now
+data_for_4a <-
+  vegetative_nutrient_invest(SummaryInd, leaf_var = "leaf_weight", stem_var = "stem_weight", resorb = FALSE) %>%
+  dplyr::bind_rows(repro_investment) %>%
+  calculate_proportions() %>%
+  mutate(species = factor(species, levels = spp_reverse))
+
+N_plot_harvest <- N_plot(data_for_4a, colour_scheme = tissues_colors_accessory) + ggtitle("Nitrogen") +
+  theme(axis.text.x = element_blank())
+
+P_plot_harvest <- P_plot(data_for_4a, colour_scheme = tissues_colors_accessory) + ggtitle("Phosphorus") +
+  theme(axis.text.x = element_blank())
+
+dry_mass_plot_harvest <- dry_mass_plot(data_for_4a, ylab = "Single harvest, all ages", colour_scheme = tissues_colors_accessory) + ggtitle("Dry mass") +
+  theme(axis.text.x = element_blank())
+
+prop_inv_harvest <- gridExtra::arrangeGrob(dry_mass_plot_harvest, N_plot_harvest, P_plot_harvest, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+grid.draw(prop_inv_harvest)
+
+#cowplot::save_plot("ms/nutrients/Figure3a_snapshot_harvest.jpg", prop_inv_harvest, base_width = 8, base_height = 3.5)
+```
+
+### Figure 4b. Investment, averaged across all years
+
+```{r}
+# assuming all wood growth in a year is sapwood; ignoring bark for now
+SummaryInd_4b <- SummaryInd %>%
+  dplyr::select(species, age, leaf_inv_gross, stem_inv_gross = growth_stem) %>%
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age == 5)
+
+data_for_4b <-
+  vegetative_nutrient_invest(SummaryInd_4b, leaf_var = "leaf_inv_gross", stem_var = "stem_inv_gross", resorb = FALSE) %>%
+  dplyr::bind_rows(repro_investment %>% 
+      dplyr::filter(age == 5)) %>%
+  calculate_proportions() %>%
+  mutate(species = factor(species, levels = spp_reverse))
+
+N_plot_gross <- N_plot(data_for_4b, colour_scheme = tissues_colors_accessory) +
+  theme(axis.text.x = element_blank())
+
+P_plot_gross <- P_plot(data_for_4b, colour_scheme = tissues_colors_accessory) +
+  theme(axis.text.x = element_blank())
+
+dry_mass_plot_gross <- dry_mass_plot(data_for_4b, ylab = "Gross investment, age 5", colour_scheme = tissues_colors_accessory) +
+  theme(axis.text.x = element_blank())
+
+prop_gross <- gridExtra::arrangeGrob(dry_mass_plot_gross, N_plot_gross, P_plot_gross, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+grid.draw(prop_gross)
+
+#cowplot::save_plot("ms/nutrients/Figure3b_average_investment.jpg", prop_gross, base_width = 8, base_height = 3.3)
+```
+
+### Figure 4c. Investment in year with highest propagule output
+
+```{r}
+SummaryInd_4c <- SummaryInd %>%
+  dplyr::select(species, age, leaf_inv_gross, stem_inv_gross = growth_stem) %>%
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))
+
+data_for_4c <-
+  vegetative_nutrient_invest(SummaryInd_4c, leaf_var = "leaf_inv_gross", stem_var = "stem_inv_gross", resorb = FALSE) %>%
+  dplyr::bind_rows(repro_investment %>% 
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))) %>%
+  calculate_proportions() %>%
+  mutate(species = factor(species, levels = spp_reverse))
+
+N_plot_max <- N_plot(data_for_4c, colour_scheme = tissues_colors_accessory) +
+  theme(axis.text.x = element_blank())
+
+P_plot_max <- P_plot(data_for_4c, colour_scheme = tissues_colors_accessory) +
+  theme(axis.text.x = element_blank())
+
+dry_mass_plot_max <- dry_mass_plot(data_for_4c, ylab = "Gross inv, age max propagule", colour_scheme = tissues_colors_accessory) +
+  theme(axis.text.x = element_blank())
+
+prop_inv_max <- gridExtra::arrangeGrob(dry_mass_plot_max, N_plot_max, P_plot_max, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+grid.draw(prop_inv_max)
+
+#cowplot::save_plot("ms/nutrients/Figure3c_max_propagule_year_investment.jpg", prop_inv_max, base_width = 8, base_height = 3.3)
+```
+
+### Figure 4d. Investment post-resorption in year with highest propagule output
+
+```{r}
+# assuming all wood growth in a year is sapwood; ignoring bark for now
+SummaryInd_4d <- SummaryInd %>%
+  dplyr::select(species, age, leaf_inv_gross, stem_inv_gross = growth_stem) %>%
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))
+
+data_for_4d <-
+  vegetative_nutrient_invest(SummaryInd_4d, leaf_var = "leaf_inv_gross", stem_var = "stem_inv_gross", resorb = TRUE) %>%
+  dplyr::bind_rows(repro_investment %>% 
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))) %>%
+  calculate_proportions() %>%
+  mutate(species = factor(species, levels = spp_reverse))
+
+dry_mass_plot_resorb <- dry_mass_plot(data_for_4d, ylab = "Considering resorption", colour_scheme = tissues_colors_accessory) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
+
+N_plot_resorb <- N_plot(data_for_4d, colour_scheme = tissues_colors_accessory) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
+
+P_plot_resorb_tmp <- P_plot(data_for_4d, colour_scheme = tissues_colors_accessory) + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    legend.position = "bottom"
+    )
+
+g <- ggplotGrob(P_plot_resorb_tmp)
+
+# Extract the legend from the gtable object 
+# (per ChatGPT, b/c cowplot::get_legend started returning a null result)
+
+legend <- g$grobs[[which(sapply(g$grobs, function(x) x$name) == "guide-box")]]
+
+P_plot_resorb <- P_plot_resorb_tmp + theme(legend.position = "none")
+  
+prop_inv_resorb <- arrangeGrob(dry_mass_plot_resorb, N_plot_resorb, P_plot_resorb, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+grid.draw(prop_inv_resorb)
+
+#cowplot::save_plot("ms/nutrients/Figure3d_max_propagule_year_investment_after_resorb.jpg", prop_inv_resorb, base_width = 8, base_height = 3.3)
+```
+
+### Figure 4e. Surplus energy investment post-resorption in year with highest propagule output
+
+```{r}
+# assuming all wood growth in a year is sapwood; ignoring bark for now
+SummaryInd_4e <- SummaryInd %>%
+  dplyr::select(species, age, leaf_inv_surplus = growth_leaf_pos, leaf_inv_gross, stem_inv_gross = growth_stem) %>%
+  dplyr::mutate(stem_inv_surplus = stem_inv_gross * leaf_inv_surplus/leaf_inv_gross) %>%
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))
+
+data_for_4e <-
+  vegetative_nutrient_invest(SummaryInd_4e, leaf_var = "leaf_inv_surplus", stem_var = "stem_inv_surplus", resorb = TRUE) %>%
+  dplyr::bind_rows(repro_investment %>% 
+  dplyr::mutate(age_spp = paste0(species, age)) %>%
+  dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))) %>%
+  calculate_proportions() %>%
+  mutate(species = factor(species, levels = spp_reverse))
+
+N_plot_surplus <- N_plot(data_for_4e, colour_scheme = tissues_colors_accessory) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
+
+P_plot_surplus_tmp <- P_plot_tmp(data_for_4e, colour_scheme = tissues_colors_accessory) + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    legend.position = "bottom"
+    )
+
+dry_mass_plot_surplus <- dry_mass_plot(data_for_4e, ylab = "Surplus energy", colour_scheme = tissues_colors_accessory) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
+
+P_plot_surplus <- P_plot_surplus_tmp + theme(legend.position = "none")
+  
+legend <- get_legend(P_plot_surplus_tmp)
+
+
+prop_inv_surplus <- arrangeGrob(dry_mass_plot_surplus, N_plot_surplus, P_plot_surplus, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+grid.draw(prop_inv_surplus)
+
+#cowplot::save_plot("ms/nutrients/Figure3e_max_propagule_year_surplus_inv.jpg", prop_inv_surplus, base_width = 8, base_height = 3.5)
+```
+
+
+#### Fig 4 combined
+
+```{r}
+bar_charts_tmp <-arrangeGrob(prop_inv_harvest, prop_gross, prop_inv_max, prop_inv_resorb, nrow = 4, ncol = 1, heights = c(1.15, 1, 1, 1.15), bottom = "species")
+
+bar_charts <- arrangeGrob(bar_charts_tmp, legend, nrow =2, ncol = 1, heights = c(1, .04))
+grid.draw(bar_charts)
+
+cowplot::save_plot("ms/nutrients/Figure4_4column_chart.jpg", bar_charts, base_width = 8.3, base_height = 11.7)
+
+#bar_charts_tmp <-arrangeGrob(prop_inv_harvest, prop_gross, prop_inv_max, prop_inv_resorb, prop_inv_surplus, nrow = 5, ncol = 1, heights = c(1.15, 1, 1, 1, 1.15), bottom = "species")
+
+#bar_charts <- arrangeGrob(bar_charts_tmp, legend, nrow =2, ncol = 1, heights = c(1, .04))
+#grid.draw(bar_charts)
+
+#cowplot::save_plot("ms/nutrients/Figure4_5column_chart.jpg", bar_charts, base_width = 8.3, base_height = 11.7)
+```
+
+####Fig 5 plots with bulked accessory
+```{r}
+# Row a
+dry_mass_plot_harvest <- dry_mass_plot(data_for_4a, ylab = "Single harvest, all ages", colour_scheme = tissues_colors_fewer) + ggtitle("Dry mass") +
+  theme(axis.text.x = element_blank())
+
+N_plot_harvest <- N_plot(data_for_4a, colour_scheme = tissues_colors_fewer) + ggtitle("Nitrogen") +
+  theme(axis.text.x = element_blank())
+
+P_plot_harvest <- P_plot(data_for_4a, colour_scheme = tissues_colors_fewer) + ggtitle("Phosphorus") +
+  theme(axis.text.x = element_blank())
+
+prop_inv_harvest_simple <- gridExtra::arrangeGrob(dry_mass_plot_harvest, N_plot_harvest, P_plot_harvest, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+# Row b
+dry_mass_plot_gross <- dry_mass_plot(data_for_4b, ylab = "Gross investment, age 5", colour_scheme = tissues_colors_fewer) +
+  theme(axis.text.x = element_blank())
+
+N_plot_gross <- N_plot(data_for_4b, colour_scheme = tissues_colors_fewer) +
+  theme(axis.text.x = element_blank())
+
+P_plot_gross <- P_plot(data_for_4b, colour_scheme = tissues_colors_fewer) +
+  theme(axis.text.x = element_blank())
+
+prop_gross_simple <- gridExtra::arrangeGrob(dry_mass_plot_gross, N_plot_gross, P_plot_gross, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+# Row c
+dry_mass_plot_max <- dry_mass_plot(data_for_4c, ylab = "Gross inv, age max propagule", colour_scheme = tissues_colors_fewer) +
+  theme(axis.text.x = element_blank())
+
+N_plot_max <- N_plot(data_for_4c, colour_scheme = tissues_colors_fewer) +
+  theme(axis.text.x = element_blank())
+
+P_plot_max <- P_plot(data_for_4c, colour_scheme = tissues_colors_fewer) +
+  theme(axis.text.x = element_blank())
+
+prop_inv_max_simple <- gridExtra::arrangeGrob(dry_mass_plot_max, N_plot_max, P_plot_max, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+# Row d
+dry_mass_plot_resorb <- dry_mass_plot(data_for_4d, ylab = "Considering resorption", colour_scheme = tissues_colors_fewer) + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7)
+    )
+
+N_plot_resorb <- N_plot(data_for_4d, colour_scheme = tissues_colors_fewer) + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7)
+    )
+
+P_plot_resorb_tmp <- P_plot(data_for_4d, colour_scheme = tissues_colors_fewer) + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    legend.position = "bottom"
+    )
+
+g <- ggplotGrob(P_plot_resorb_tmp)
+
+legend <- g$grobs[[which(sapply(g$grobs, function(x) x$name) == "guide-box")]]
+
+P_plot_resorb <- P_plot_resorb_tmp + theme(legend.position = "none")
+
+prop_inv_resorb_simple <- arrangeGrob(dry_mass_plot_resorb, N_plot_resorb, P_plot_resorb, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+
+# combined
+bar_charts_tmp_simple <-arrangeGrob(prop_inv_harvest_simple, prop_gross_simple, prop_inv_max_simple, prop_inv_resorb_simple, nrow = 4, ncol = 1, heights = c(1.15, 1, 1, 1.15), bottom = "species")
+
+bar_charts_simple <- arrangeGrob(bar_charts_tmp_simple, legend, nrow =2, ncol = 1, heights = c(1, .04))
+grid.draw(bar_charts_simple)
+
+cowplot::save_plot("ms/nutrients/Figure5_4column_chart.jpg", bar_charts_simple, base_width = 8.3, base_height = 11.7)
+```
