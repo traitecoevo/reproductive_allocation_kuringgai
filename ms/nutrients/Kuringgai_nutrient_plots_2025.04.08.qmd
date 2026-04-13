@@ -413,7 +413,21 @@ accessory_spp_means_by_tissue <- nutrient_summary %>%
 
 # Split nutrient data frame by tissue type
 # This doesn't work for bulked accessory tissues, since they are weighted by actual investment
-  simpler_split <- nutrient %>% split(nutrient$tissue_simple)
+  nutrient_means_for_ellipses <- nutrient %>%
+  dplyr::mutate(
+      log10N = log10(N),
+      log10P = log10(P)
+  ) %>%
+    dplyr::select(species, tissue_simple, log10N, log10P) %>%
+    dplyr::group_by(species, tissue_simple) %>% 
+      dplyr::summarise(
+        log10N = mean(log10N, na.rm = T),
+        log10P = mean(log10P, na.rm = T)
+        ) %>%
+    dplyr::ungroup() %>%
+    dplyr::distinct()
+
+  simpler_split <- nutrient_means_for_ellipses %>% split(nutrient_means_for_ellipses$tissue_simple)
 
 # 1. Leaves
   # Calculate mu and sigma
@@ -435,7 +449,8 @@ accessory_spp_means_by_tissue <- nutrient_summary %>%
     ellipse_data_sapwood$density <- apply(ellipse_data_sapwood, 1, function(x) mv_density(x, mu_sapwood, sigma_sapwood))
 
 # 3. Wood from base
-    mu_mixedwood <- simpler_split[["wood_from_base"]] %>% dplyr::select(log10N, log10P) %>% filter(!is.na(log10N)) %>% colMeans()
+    mu_mixedwood <- simpler_split[["wood_from_base"]] %>% dplyr::select(log10N, log10P) %>% 
+      filter(!is.na(log10N)) %>% colMeans()
     sigma_mixedwood <- simpler_split[["wood_from_base"]] %>% dplyr::select(log10N, log10P) %>% filter(!is.na(log10N)) %>% cov()  
     ellipse_data_mixedwood <- ellipse::ellipse(sigma_mixedwood, centre = mu_mixedwood, level = 0.95) |>
       as_tibble()
@@ -536,9 +551,14 @@ Figure_2a_tmp <- ggplot(data = nutrient_spp_means_by_tissue, aes(x = log10N, y =
     ) + 
   guides(colour = guide_legend(override.aes = list(size = 3))) 
 
+g <- ggplotGrob(Figure_2a_tmp)
+
+# Extract the legend from the gtable object 
+# (per ChatGPT, b/c cowplot::get_legend started returning a null result)
+
+legend_2a <- g$grobs[[which(sapply(g$grobs, function(x) x$name) == "guide-box")]]
+
 Figure_2a <- Figure_2a_tmp + theme(legend.position = "none")
-  
-legend_2a <- get_legend(Figure_2a_tmp)
 ```
 
 #### - Fig 2b, Repro tissues
@@ -583,9 +603,14 @@ Figure_2b_tmp <- ggplot(data = accessory_spp_means_by_tissue , aes(x = log10N, y
     ) + 
   guides(colour = guide_legend(override.aes = list(size = 3))) 
 
+g <- ggplotGrob(Figure_2b_tmp)
+
+# Extract the legend from the gtable object 
+# (per ChatGPT, b/c cowplot::get_legend started returning a null result)
+
+legend_2b <- g$grobs[[which(sapply(g$grobs, function(x) x$name) == "guide-box")]]
+
 Figure_2b <- Figure_2b_tmp + theme(legend.position = "none")
-  
-legend_2b <- get_legend(Figure_2b_tmp)
 ```
 
 #### - Fig 2c, Green tissues
@@ -672,7 +697,7 @@ Figure2cd <- ggdraw(plot_grid(plot_grid(Figure_2c, Figure_2d, ncol=2, align='v',
 Figure2 <- ggdraw(plot_grid(plot_grid(Figure2ab, Figure2cd, ncol=1, align='v', rel_heights = c(2,0.6))))
   
   
-cowplot::save_plot("ms/nutrients/Figure2_nutrient_content_v3.jpg", Figure2, base_width = 8.3, base_height = 11.7)
+cowplot::save_plot("ms/nutrients/Figure2_nutrient_content_v3.png", Figure2, base_width = 8.3, base_height = 11.7)
 
 ```
 
@@ -704,11 +729,11 @@ nutrients_vegetative <-
 
 Figure_3_tmp <- 
   ggplot(data = nutrients_vegetative) +
+  geom_segment(aes(x = N_live_log10, xend = N_dead_log10, y = P_live_log10, yend = P_dead_log10, color = factor(parts_to_match)), linewidth = .2) +
   geom_point(aes(x = N_dead_log10, y = P_dead_log10, color = factor(parts_to_match)), pch = 21, fill = "white", size = 3) +
   geom_point(aes(x = N_live_log10, y = P_live_log10, color = factor(parts_to_match), shape = factor(parts_to_match)), size = 3) +
   scale_colour_manual(values = tissues_colors, name = "vegetative tissue") +
   scale_shape_manual(values = tissues_shapes, name = "vegetative tissue") +
-  geom_segment(aes(x = N_live_log10, xend = N_dead_log10, y = P_live_log10, yend = P_dead_log10, color = factor(parts_to_match)), linewidth = .2) +
   #geom_abline(slope = 1, intercept = 2.09, colour = "grey70") +
   geom_abline(slope = 1, intercept = 1.09, colour = "grey70") +
   geom_abline(slope = 1, intercept = 3.09, colour = "grey70") +
@@ -753,16 +778,9 @@ Figure_3 <- Figure_3_tmp + theme(legend.position = "none")
 
 legend_3 <- get_legend(Figure_3_tmp)
 
-#Figure2_all <-arrangeGrob(Figure_2a, legend_2a, Figure_2b, legend_2b, Figure_2c, legend_2c, nrow = 3, ncol = 2, heights = c(1, 1, 1), widths = c(1, .25))
-
-#Figure2_all <- ggdraw(plot_grid(
- #                                 plot_grid(Figure_2a, Figure_2b, Figure_2c, ncol=1, align='v', rel_heights = c(1,1,1)),
-  #                                plot_grid(legend_2a, legend_2b, legend_2c, ncol=1, align='v', rel_heights = c(1,1,1)),
-   #                               rel_widths=c(1, 0.3)))
-
 cowplot::save_plot("ms/nutrients/Figure3_resorption.jpg", Figure_3_tmp, base_width = 8.3, base_height = 4)
 
-grid.draw(Figure_3_tmp)
+#grid.draw(Figure_3_tmp)
 ```
 
 
@@ -940,8 +958,10 @@ calculate_proportions <- function(dataframe) {
   dplyr::ungroup() %>%
   dplyr::group_by(species) %>%
   dplyr::mutate(
-    across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x))
-  ) %>%
+    across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x)),
+    N_inv_rel = N_inv/dry_mass_inv,
+    P_inv_rel = P_inv/dry_mass_inv
+      ) %>%
   dplyr::mutate(tissue = factor(tissue, c("propagule", "accessory", "leaves", "sapwood")))
   
   dataframe
@@ -1084,15 +1104,21 @@ calculate_proportions_simple <- function(dataframe) {
 calculate_proportions <- function(dataframe) {
   
   dataframe <- dataframe %>%
-  dplyr::group_by(species, tissue) %>%
-  dplyr::summarise(across(c(dry_mass_inv, N_inv, P_inv), ~sum(.x, na.rm = TRUE))) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(species) %>%
-  dplyr::mutate(
-    across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x))
-  ) %>%
-  dplyr::mutate(tissue = factor(tissue, c("propagule", "immature propagule", "floral accessory", "green accessory", "woody accessory", "leaves", "sapwood")))
-  
+    dplyr::group_by(species, tissue) %>%
+    dplyr::summarise(across(c(dry_mass_inv, N_inv, P_inv), ~sum(.x, na.rm = TRUE))) %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(species) %>%
+    dplyr::mutate(
+      across(c(dry_mass_inv, N_inv, P_inv), ~ .x/sum(.x)),
+      dry_mass_inv_rel = dry_mass_inv / dry_mass_inv,
+      N_inv_rel = N_inv / dry_mass_inv,
+      P_inv_rel = P_inv / dry_mass_inv
+      ) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(
+      tissue = factor(tissue, c("propagule", "immature propagule", "floral accessory", "green accessory", "woody accessory", "leaves", "sapwood"))
+      )
+    
   dataframe
 }
 
@@ -1175,6 +1201,40 @@ data_for_4a <-
   calculate_proportions() %>%
   mutate(species = factor(species, levels = spp_reverse))
 
+data_for_4a_fit_dry <- lm(dry_mass_inv_rel  ~ tissue, data = data_for_4a)
+data_for_4a_fit_dry_data <- estimate_means(data_for_4a_fit_dry) %>% as.data.frame() %>% mutate(currency = "dry mass")
+
+data_for_4a_fit_N <- lm(N_inv_rel ~ tissue, data = data_for_4a)
+data_for_4a_fit_N_data <- estimate_means(data_for_4a_fit_N) %>% as.data.frame() %>% mutate(currency = "nitrogen")
+
+data_for_4a_fit_P <- lm(P_inv_rel ~ tissue, data = data_for_4a)
+data_for_4a_fit_P_data <- estimate_means(data_for_4a_fit_P) %>% as.data.frame() %>% mutate(currency = "phosphorus")
+
+data_for_4a_v2 <- data_for_4a_fit_dry_data %>%
+  bind_rows(data_for_4a_fit_N_data) %>%
+  bind_rows(data_for_4a_fit_P_data)
+
+data_for_4a_v3 <- data_for_4a %>%
+  dplyr::rename(`dry mass` = dry_mass_inv_rel , nitrogen = N_inv_rel, phosphorus = P_inv_rel) %>%
+  tidyr::pivot_longer(cols = 6:8) %>%
+  dplyr::rename(Mean = value, currency = name) %>%
+  filter(currency != "dry mass")
+
+plot4a_v2 <- ggplot(data = data_for_4a_v2, aes(x = currency, y = Mean, color = factor(tissue), group = tissue)) +
+  geom_point(size = 7, pch = "—") +
+  geom_line() +
+  geom_point(data = data_for_4a_v3,position = position_jitter(width = 0.1, height = 0)) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_y_log10(limits = c(.02, 200), breaks = c(1, 10, 100), labels = label_log()) +
+  theme_classic() +
+  ylab("proportional investment, relative to other tissues types") +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.title.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position="none"
+    )
+
 N_plot_harvest <- N_plot(data_for_4a, colour_scheme = tissues_colors_accessory) + ggtitle("Nitrogen") +
   theme(axis.text.x = element_blank())
 
@@ -1207,6 +1267,41 @@ data_for_4b <-
   calculate_proportions() %>%
   mutate(species = factor(species, levels = spp_reverse))
 
+data_for_4b_fit_dry <- lm(dry_mass_inv_rel  ~ tissue, data = data_for_4b)
+data_for_4b_fit_dry_data <- estimate_means(data_for_4a_fit_dry) %>% as.data.frame() %>% mutate(currency = "dry mass")
+
+data_for_4b_fit_N <- lm(N_inv_rel ~ tissue, data = data_for_4b)
+data_for_4b_fit_N_data <- estimate_means(data_for_4b_fit_N) %>% as.data.frame() %>% mutate(currency = "nitrogen")
+
+data_for_4b_fit_P <- lm(P_inv_rel ~ tissue, data = data_for_4b)
+data_for_4b_fit_P_data <- estimate_means(data_for_4b_fit_P) %>% as.data.frame() %>% mutate(currency = "phosphorus")
+
+data_for_4b_v2 <- data_for_4b_fit_dry_data %>%
+  bind_rows(data_for_4b_fit_N_data) %>%
+  bind_rows(data_for_4b_fit_P_data)
+
+data_for_4b_v3 <- data_for_4b %>%
+  dplyr::rename(`dry mass` = dry_mass_inv_rel , nitrogen = N_inv_rel, phosphorus = P_inv_rel) %>%
+  tidyr::pivot_longer(cols = 6:8) %>%
+  dplyr::rename(Mean = value, currency = name) %>%
+  filter(currency != "dry mass")
+
+plot4b_v2 <- ggplot(data = data_for_4b_v2, aes(x = currency, y = Mean, color = factor(tissue), group = tissue)) +
+  geom_point(size = 7, pch = "—") +
+  geom_line() +
+  geom_point(data = data_for_4b_v3,position = position_jitter(width = 0.1, height = 0)) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_y_log10(limits = c(.02, 200), breaks = c(1, 10, 100), labels = label_log()) +
+  theme_classic() +
+  ylab("proportional investment, relative to other tissues types") +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.title.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position="none"
+    )
+
+
 N_plot_gross <- N_plot(data_for_4b, colour_scheme = tissues_colors_accessory) +
   theme(axis.text.x = element_blank())
 
@@ -1225,6 +1320,8 @@ grid.draw(prop_gross)
 
 ### Figure 4c. Investment in year with highest propagule output
 
+(decided not to include)
+
 ```{r}
 SummaryInd_4c <- SummaryInd %>%
   dplyr::select(species, age, leaf_inv_gross, stem_inv_gross = growth_stem) %>%
@@ -1239,6 +1336,40 @@ data_for_4c <-
   calculate_proportions() %>%
   mutate(species = factor(species, levels = spp_reverse))
 
+data_for_4c_fit_dry <- lm(dry_mass_inv_rel  ~ tissue, data = data_for_4c)
+data_for_4c_fit_dry_data <- estimate_means(data_for_4c_fit_dry) %>% as.data.frame() %>% mutate(currency = "dry mass")
+
+data_for_4c_fit_N <- lm(N_inv_rel ~ tissue, data = data_for_4c)
+data_for_4c_fit_N_data <- estimate_means(data_for_4c_fit_N) %>% as.data.frame() %>% mutate(currency = "nitrogen")
+
+data_for_4c_fit_P <- lm(P_inv_rel ~ tissue, data = data_for_4c)
+data_for_4c_fit_P_data <- estimate_means(data_for_4c_fit_P) %>% as.data.frame() %>% mutate(currency = "phosphorus")
+
+data_for_4c_v2 <- data_for_4c_fit_dry_data %>%
+  bind_rows(data_for_4c_fit_N_data) %>%
+  bind_rows(data_for_4c_fit_P_data)
+
+data_for_4c_v3 <- data_for_4c %>%
+  dplyr::rename(`dry mass` = dry_mass_inv_rel , nitrogen = N_inv_rel, phosphorus = P_inv_rel) %>%
+  tidyr::pivot_longer(cols = 6:8) %>%
+  dplyr::rename(Mean = value, currency = name) %>%
+  filter(currency != "dry mass")
+
+plot4c_v2 <- ggplot(data = data_for_4c_v2, aes(x = currency, y = Mean, color = factor(tissue), group = tissue)) +
+  geom_point(size = 7, pch = "—") +
+  geom_line() +
+  geom_point(data = data_for_4c_v3,position = position_jitter(width = 0.1, height = 0)) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_y_log10(limits = c(.02, 200), breaks = c(1, 10, 100), labels = label_log()) +
+  theme_classic() +
+  ylab("proportional investment, relative to other tissues types") +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.title.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position="none"
+    )
+
 N_plot_max <- N_plot(data_for_4c, colour_scheme = tissues_colors_accessory) +
   theme(axis.text.x = element_blank())
 
@@ -1248,7 +1379,7 @@ P_plot_max <- P_plot(data_for_4c, colour_scheme = tissues_colors_accessory) +
 dry_mass_plot_max <- dry_mass_plot(data_for_4c, ylab = "Gross inv, age max propagule", colour_scheme = tissues_colors_accessory) +
   theme(axis.text.x = element_blank())
 
-prop_inv_max <- gridExtra::arrangeGrob(dry_mass_plot_max, N_plot_max, P_plot_max, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
+prop_inv_max <- gridExtra::arrangeGrob(dry_mass_plot_max, N_plot_max, P_plot_max, plot4c_v2, nrow = 1, ncol = 4, widths =c(1.1, 1, 1, 1.2))
 
 grid.draw(prop_inv_max)
 
@@ -1271,6 +1402,40 @@ data_for_4d <-
   dplyr::filter(age_spp %in% c("BOLE9", "GRSP9", "PILI7", "HEPU9", "EPMI32", "GRBU32", "LEES9", "PUTU9", "COER9", "HATE32", "PHPH9", "BAER32", "PEPU9", "PELA32"))) %>%
   calculate_proportions() %>%
   mutate(species = factor(species, levels = spp_reverse))
+
+data_for_4d_fit_dry <- lm(dry_mass_inv_rel  ~ tissue, data = data_for_4d)
+data_for_4d_fit_dry_data <- estimate_means(data_for_4d_fit_dry) %>% as.data.frame() %>% mutate(currency = "dry mass")
+
+data_for_4d_fit_N <- lm(N_inv_rel ~ tissue, data = data_for_4d)
+data_for_4d_fit_N_data <- estimate_means(data_for_4d_fit_N) %>% as.data.frame() %>% mutate(currency = "nitrogen")
+
+data_for_4d_fit_P <- lm(P_inv_rel ~ tissue, data = data_for_4d)
+data_for_4d_fit_P_data <- estimate_means(data_for_4d_fit_P) %>% as.data.frame() %>% mutate(currency = "phosphorus")
+
+data_for_4d_v2 <- data_for_4d_fit_dry_data %>%
+  bind_rows(data_for_4d_fit_N_data) %>%
+  bind_rows(data_for_4d_fit_P_data)
+
+data_for_4d_v3 <- data_for_4d %>%
+  dplyr::rename(`dry mass` = dry_mass_inv_rel , nitrogen = N_inv_rel, phosphorus = P_inv_rel) %>%
+  tidyr::pivot_longer(cols = 6:8) %>%
+  dplyr::rename(Mean = value, currency = name) %>%
+  filter(currency != "dry mass")
+
+plot4d_v2 <- ggplot(data = data_for_4d_v2, aes(x = currency, y = Mean, color = factor(tissue), group = tissue)) +
+  geom_point(size = 7, pch = "—") +
+  geom_line() +
+  geom_point(data = data_for_4d_v3,position = position_jitter(width = 0.1, height = 0)) +
+  scale_colour_manual(values = tissues_colors_accessory, name = "accessory category") +
+  scale_y_log10(limits = c(.02, 200), breaks = c(1, 10, 100), labels = label_log()) +
+  theme_classic() +
+  ylab("proportional investment, relative to other tissues types") +
+  theme(
+    axis.text.y = element_text(size = 10),
+    axis.title.x = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 10),
+    legend.position="none"
+    )
 
 dry_mass_plot_resorb <- dry_mass_plot(data_for_4d, ylab = "Considering resorption", colour_scheme = tissues_colors_accessory) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
@@ -1296,6 +1461,9 @@ P_plot_resorb <- P_plot_resorb_tmp + theme(legend.position = "none")
 prop_inv_resorb <- arrangeGrob(dry_mass_plot_resorb, N_plot_resorb, P_plot_resorb, nrow = 1, ncol = 3, widths =c(1.1, 1, 1))
 
 grid.draw(prop_inv_resorb)
+
+
+
 
 #cowplot::save_plot("ms/nutrients/Figure3d_max_propagule_year_investment_after_resorb.jpg", prop_inv_resorb, base_width = 8, base_height = 3.3)
 ```
@@ -1352,6 +1520,11 @@ bar_charts <- arrangeGrob(bar_charts_tmp, legend, nrow =2, ncol = 1, heights = c
 grid.draw(bar_charts)
 
 cowplot::save_plot("ms/nutrients/Figure4_4column_chart.jpg", bar_charts, base_width = 8.3, base_height = 11.7)
+
+grid.draw(bar_charts)
+
+
+inv_resorb_lines <- arrangeGrob(plot4a_v2, plot4b_v2, plot4c_v2, plot4d_v2, nrow = 1, ncol = 4, widths =c(1, 1, 1, 1))
 
 #bar_charts_tmp <-arrangeGrob(prop_inv_harvest, prop_gross, prop_inv_max, prop_inv_resorb, prop_inv_surplus, nrow = 5, ncol = 1, heights = c(1.15, 1, 1, 1, 1.15), bottom = "species")
 
@@ -1431,4 +1604,21 @@ bar_charts_simple <- arrangeGrob(bar_charts_tmp_simple, legend, nrow =2, ncol = 
 grid.draw(bar_charts_simple)
 
 cowplot::save_plot("ms/nutrients/Figure5_4column_chart.jpg", bar_charts_simple, base_width = 8.3, base_height = 11.7)
+```
+
+```{r}
+# don't think any stats are possible...
+bar_graph_data <- data_for_4a %>% 
+  mutate(allocation_calculation = "harvest") %>%
+  bind_rows(data_for_4b %>% mutate(allocation_calculation = "age_5")) %>%
+  bind_rows(data_for_4c %>% mutate(allocation_calculation = "max_age")) %>%
+  bind_rows(data_for_4d %>% mutate(allocation_calculation = "resorb")) %>%
+  bind_rows(data_for_4e %>% mutate(allocation_calculation = "surplus")) %>%
+  tidyr::pivot_longer(cols = 3:5)
+
+bar_graph_model <- lm(value ~ name * species, data = bar_graph_data %>% filter(tissue == "leaves", allocation_calculation == "max_age"))
+
+estimate_contrasts(bar_graph_model, contrast = c("allocation_calculation", "name"))
+
+bar_graph_model <- lmer(value ~ name * allocation_calculation + (1|species), data = bar_graph_data)
 ```
